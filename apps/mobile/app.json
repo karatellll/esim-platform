@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "ТурСим",
+    "slug": "tursim",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#141416",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "predictiveBackGestureEnabled": true
+    },
+    "plugins": [
+      "expo-image"
+    ]
+  }
+}

@@ -1,0 +1,196 @@
+{
+  "$defs": {
+    "CatalogEsim": {
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "country_iso2": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Country Iso2"
+        },
+        "display_name": {
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "image_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Url"
+        },
+        "min_price_amount": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Price Amount"
+        },
+        "min_price_currency": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z]{3}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Price Currency"
+        }
+      },
+      "required": [
+        "id",
+        "display_name"
+      ],
+      "title": "CatalogEsim",
+      "type": "object"
+    },
+    "CatalogTariff": {
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "display_name": {
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "price_amount_minor": {
+          "minimum": 0,
+          "title": "Price Amount Minor",
+          "type": "integer"
+        },
+        "price_currency": {
+          "pattern": "^[A-Z]{3}$",
+          "title": "Price Currency",
+          "type": "string"
+        },
+        "data_amount": {
+          "$ref": "#/$defs/TariffDataAmount"
+        },
+        "duration": {
+          "$ref": "#/$defs/TariffDuration"
+        },
+        "is_profitable_badge": {
+          "default": false,
+          "title": "Is Profitable Badge",
+          "type": "boolean"
+        },
+        "is_unlimited": {
+          "title": "Is Unlimited",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "display_name",
+        "price_amount_minor",
+        "price_currency",
+        "data_amount",
+        "duration",
+        "is_unlimited"
+      ],
+      "title": "CatalogTariff",
+      "type": "object"
+    },
+    "CatalogTariffsData": {
+      "properties": {
+        "esim": {
+          "$ref": "#/$defs/CatalogEsim"
+        },
+        "tariffs": {
+          "items": {
+            "$ref": "#/$defs/CatalogTariff"
+          },
+          "title": "Tariffs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "esim",
+        "tariffs"
+      ],
+      "title": "CatalogTariffsData",
+      "type": "object"
+    },
+    "TariffDataAmount": {
+      "properties": {
+        "amount": {
+          "minimum": 0,
+          "title": "Amount",
+          "type": "number"
+        },
+        "unit": {
+          "maxLength": 16,
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "unit"
+      ],
+      "title": "TariffDataAmount",
+      "type": "object"
+    },
+    "TariffDuration": {
+      "properties": {
+        "amount": {
+          "exclusiveMinimum": 0,
+          "title": "Amount",
+          "type": "integer"
+        },
+        "unit": {
+          "maxLength": 16,
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "unit"
+      ],
+      "title": "TariffDuration",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "data": {
+      "$ref": "#/$defs/CatalogTariffsData"
+    }
+  },
+  "required": [
+    "data"
+  ],
+  "title": "CatalogTariffsResponse",
+  "type": "object"
+}

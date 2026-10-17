@@ -1,0 +1,43 @@
+# Local settings and secrets
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# JavaScript / mobile tooling
+node_modules/
+.expo/
+.metro-cache/
+
+# Build output and reports
+dist/
+dist-native/
+build/
+coverage/
+htmlcov/
+.coverage
+*.log
+
+# Local databases
+*.sqlite
+*.sqlite3
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

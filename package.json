@@ -1,0 +1,15 @@
+{
+  "name": "esim-platform",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix apps/mobile run start",
+    "web": "npm --prefix apps/mobile run web",
+    "android": "npm --prefix apps/mobile run android",
+    "ios": "npm --prefix apps/mobile run ios",
+    "typecheck": "npm --prefix apps/mobile run typecheck",
+    "test:catalog": "npm --prefix apps/mobile run test:catalog",
+    "api": "apps/api/.venv/bin/python -m app.cli",
+    "test:api": "apps/api/.venv/bin/python -m pytest apps/api/tests",
+    "contracts": "apps/api/.venv/bin/python apps/api/scripts/export_contracts.py"
+  }
+}

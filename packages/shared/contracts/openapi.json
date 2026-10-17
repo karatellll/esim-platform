@@ -1,0 +1,422 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ТурСим API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog/categories": {
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Категории и страны из SDK-каталога",
+        "description": "Сервер получает ClientToken и загружает GET /v1/sdk/esims; ключи и токен клиенту не передаются.",
+        "operationId": "categories_api_catalog_categories_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogCategoriesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog/esims/{esim_id}/tariffs": {
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Тарифы выбранного направления из SDK",
+        "operationId": "tariffs_api_catalog_esims__esim_id__tariffs_get",
+        "parameters": [
+          {
+            "name": "esim_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Esim Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogTariffsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CatalogCategoriesResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogCategory"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CatalogMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CatalogCategoriesResponse"
+      },
+      "CatalogCategory": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Title"
+          },
+          "esims": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogEsim"
+            },
+            "type": "array",
+            "title": "Esims"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "esims"
+        ],
+        "title": "CatalogCategory"
+      },
+      "CatalogEsim": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Id"
+          },
+          "country_iso2": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Iso2"
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Display Name"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "min_price_amount": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Price Amount"
+          },
+          "min_price_currency": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Price Currency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "display_name"
+        ],
+        "title": "CatalogEsim"
+      },
+      "CatalogMeta": {
+        "properties": {
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "default": false
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "title": "CatalogMeta"
+      },
+      "CatalogTariff": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Id"
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Display Name"
+          },
+          "price_amount_minor": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Price Amount Minor"
+          },
+          "price_currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "title": "Price Currency"
+          },
+          "data_amount": {
+            "$ref": "#/components/schemas/TariffDataAmount"
+          },
+          "duration": {
+            "$ref": "#/components/schemas/TariffDuration"
+          },
+          "is_profitable_badge": {
+            "type": "boolean",
+            "title": "Is Profitable Badge",
+            "default": false
+          },
+          "is_unlimited": {
+            "type": "boolean",
+            "title": "Is Unlimited"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "price_amount_minor",
+          "price_currency",
+          "data_amount",
+          "duration",
+          "is_unlimited"
+        ],
+        "title": "CatalogTariff"
+      },
+      "CatalogTariffsData": {
+        "properties": {
+          "esim": {
+            "$ref": "#/components/schemas/CatalogEsim"
+          },
+          "tariffs": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogTariff"
+            },
+            "type": "array",
+            "title": "Tariffs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "esim",
+          "tariffs"
+        ],
+        "title": "CatalogTariffsData"
+      },
+      "CatalogTariffsResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CatalogTariffsData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CatalogTariffsResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "TariffDataAmount": {
+        "properties": {
+          "amount": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Amount"
+          },
+          "unit": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Unit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "unit"
+        ],
+        "title": "TariffDataAmount"
+      },
+      "TariffDuration": {
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount"
+          },
+          "unit": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Unit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "unit"
+        ],
+        "title": "TariffDuration"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
