@@ -1,0 +1,15 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "quote_id": {
+      "format": "uuid",
+      "title": "Quote Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "quote_id"
+  ],
+  "title": "CheckoutOrderRequest",
+  "type": "object"
+}

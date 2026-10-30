@@ -1,0 +1,257 @@
+{
+  "$defs": {
+    "CatalogEsim": {
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "country_iso2": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Country Iso2"
+        },
+        "display_name": {
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "image_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Url"
+        },
+        "min_price_amount": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Price Amount"
+        },
+        "min_price_currency": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Z]{3}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Price Currency"
+        }
+      },
+      "required": [
+        "id",
+        "display_name"
+      ],
+      "title": "CatalogEsim",
+      "type": "object"
+    },
+    "CatalogTariff": {
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "display_name": {
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "price_amount_minor": {
+          "minimum": 0,
+          "title": "Price Amount Minor",
+          "type": "number"
+        },
+        "price_currency": {
+          "pattern": "^[A-Z]{3}$",
+          "title": "Price Currency",
+          "type": "string"
+        },
+        "data_amount": {
+          "$ref": "#/$defs/TariffDataAmount"
+        },
+        "duration": {
+          "$ref": "#/$defs/TariffDuration"
+        },
+        "is_profitable_badge": {
+          "default": false,
+          "title": "Is Profitable Badge",
+          "type": "boolean"
+        },
+        "is_unlimited": {
+          "title": "Is Unlimited",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "display_name",
+        "price_amount_minor",
+        "price_currency",
+        "data_amount",
+        "duration",
+        "is_unlimited"
+      ],
+      "title": "CatalogTariff",
+      "type": "object"
+    },
+    "CheckoutSummary": {
+      "properties": {
+        "country": {
+          "$ref": "#/$defs/CatalogEsim"
+        },
+        "tariff": {
+          "$ref": "#/$defs/CatalogTariff"
+        },
+        "amount": {
+          "minimum": 0,
+          "title": "Amount",
+          "type": "number"
+        },
+        "currency": {
+          "pattern": "^[A-Z]{3}$",
+          "title": "Currency",
+          "type": "string"
+        },
+        "price_source": {
+          "enum": [
+            "catalog",
+            "provider"
+          ],
+          "title": "Price Source",
+          "type": "string"
+        },
+        "ordering_available": {
+          "title": "Ordering Available",
+          "type": "boolean"
+        },
+        "quote_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote Id"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        },
+        "existing_order_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Existing Order Id"
+        }
+      },
+      "required": [
+        "country",
+        "tariff",
+        "amount",
+        "currency",
+        "price_source",
+        "ordering_available"
+      ],
+      "title": "CheckoutSummary",
+      "type": "object"
+    },
+    "TariffDataAmount": {
+      "properties": {
+        "amount": {
+          "minimum": 0,
+          "title": "Amount",
+          "type": "number"
+        },
+        "unit": {
+          "maxLength": 16,
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "unit"
+      ],
+      "title": "TariffDataAmount",
+      "type": "object"
+    },
+    "TariffDuration": {
+      "properties": {
+        "amount": {
+          "exclusiveMinimum": 0,
+          "title": "Amount",
+          "type": "integer"
+        },
+        "unit": {
+          "maxLength": 16,
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "unit"
+      ],
+      "title": "TariffDuration",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "data": {
+      "$ref": "#/$defs/CheckoutSummary"
+    }
+  },
+  "required": [
+    "data"
+  ],
+  "title": "CheckoutSummaryResponse",
+  "type": "object"
+}

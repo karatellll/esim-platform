@@ -1,0 +1,400 @@
+{
+  "$defs": {
+    "OrderData": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "order_number": {
+          "title": "Order Number",
+          "type": "integer"
+        },
+        "state": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "State",
+          "type": "string"
+        },
+        "total_amount_minor": {
+          "minimum": 0,
+          "title": "Total Amount Minor",
+          "type": "number"
+        },
+        "total_currency": {
+          "pattern": "^[A-Z]{3}$",
+          "title": "Total Currency",
+          "type": "string"
+        },
+        "esim": {
+          "$ref": "#/$defs/OrderEsim"
+        },
+        "tariff": {
+          "$ref": "#/$defs/OrderTariff"
+        },
+        "remaining": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TariffDataAmount"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "esim_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Esim Status"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/OrderItem"
+          },
+          "minItems": 1,
+          "title": "Items",
+          "type": "array"
+        },
+        "payment": {
+          "$ref": "#/$defs/OrderPayment"
+        },
+        "provision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OrderProvision"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "activated_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Activated At"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        },
+        "price_changed": {
+          "default": false,
+          "title": "Price Changed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "order_number",
+        "state",
+        "total_amount_minor",
+        "total_currency",
+        "esim",
+        "tariff",
+        "created_at",
+        "items",
+        "payment"
+      ],
+      "title": "OrderData",
+      "type": "object"
+    },
+    "OrderEsim": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "OrderEsim",
+      "type": "object"
+    },
+    "OrderItem": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "storefront_plan_id": {
+          "format": "uuid",
+          "title": "Storefront Plan Id",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "price_amount_minor": {
+          "minimum": 0,
+          "title": "Price Amount Minor",
+          "type": "number"
+        },
+        "price_currency": {
+          "pattern": "^[A-Z]{3}$",
+          "title": "Price Currency",
+          "type": "string"
+        },
+        "data_amount": {
+          "$ref": "#/$defs/TariffDataAmount"
+        },
+        "duration": {
+          "$ref": "#/$defs/TariffDuration"
+        }
+      },
+      "required": [
+        "id",
+        "storefront_plan_id",
+        "display_name",
+        "price_amount_minor",
+        "price_currency",
+        "data_amount",
+        "duration"
+      ],
+      "title": "OrderItem",
+      "type": "object"
+    },
+    "OrderPayment": {
+      "properties": {
+        "state": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "State",
+          "type": "string"
+        },
+        "amount_minor": {
+          "minimum": 0,
+          "title": "Amount Minor",
+          "type": "number"
+        },
+        "currency": {
+          "pattern": "^[A-Z]{3}$",
+          "title": "Currency",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        },
+        "failure_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure Code"
+        }
+      },
+      "required": [
+        "state",
+        "amount_minor",
+        "currency"
+      ],
+      "title": "OrderPayment",
+      "type": "object"
+    },
+    "OrderProvision": {
+      "properties": {
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "iccid": {
+          "default": "",
+          "title": "Iccid",
+          "type": "string"
+        },
+        "activation_code": {
+          "default": "",
+          "title": "Activation Code",
+          "type": "string"
+        },
+        "smdp_address": {
+          "default": "",
+          "title": "Smdp Address",
+          "type": "string"
+        },
+        "matching_id": {
+          "default": "",
+          "title": "Matching Id",
+          "type": "string"
+        },
+        "qr_code_url": {
+          "default": "",
+          "title": "Qr Code Url",
+          "type": "string"
+        },
+        "qr_code_url_expires": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Qr Code Url Expires"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "title": "OrderProvision",
+      "type": "object"
+    },
+    "OrderTariff": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "data_amount": {
+          "$ref": "#/$defs/TariffDataAmount"
+        },
+        "duration": {
+          "$ref": "#/$defs/TariffDuration"
+        }
+      },
+      "required": [
+        "id",
+        "data_amount",
+        "duration"
+      ],
+      "title": "OrderTariff",
+      "type": "object"
+    },
+    "TariffDataAmount": {
+      "properties": {
+        "amount": {
+          "minimum": 0,
+          "title": "Amount",
+          "type": "number"
+        },
+        "unit": {
+          "maxLength": 16,
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "unit"
+      ],
+      "title": "TariffDataAmount",
+      "type": "object"
+    },
+    "TariffDuration": {
+      "properties": {
+        "amount": {
+          "exclusiveMinimum": 0,
+          "title": "Amount",
+          "type": "integer"
+        },
+        "unit": {
+          "maxLength": 16,
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "unit"
+      ],
+      "title": "TariffDuration",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "data": {
+      "$ref": "#/$defs/OrderData"
+    }
+  },
+  "required": [
+    "data"
+  ],
+  "title": "OrderEnvelope",
+  "type": "object"
+}

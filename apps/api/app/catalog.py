@@ -16,7 +16,7 @@ class SDKCatalogItem(BaseModel):
     country: str | None = None
     name: str = Field(min_length=1)
     image_url: str | None = None
-    min_price_amount: int | None = Field(default=None, ge=0, strict=True)
+    min_price_amount: float | None = Field(default=None, ge=0, strict=True, allow_inf_nan=False)
     min_price_currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
 
 
@@ -33,7 +33,7 @@ class SDKCatalogResponse(BaseModel):
 class SDKTariff(BaseModel):
     id: str = Field(min_length=1)
     display_name: str = Field(min_length=1)
-    price_amount_minor: int = Field(ge=0, strict=True)
+    price_amount_minor: float = Field(ge=0, strict=True, allow_inf_nan=False)
     price_currency: str = Field(pattern=r"^[A-Z]{3}$")
     data_amount: TariffDataAmount
     duration: TariffDuration

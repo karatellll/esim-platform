@@ -1,0 +1,114 @@
+{
+  "fileKey": "PWdKnO2WHAIS0NE18vlgL4",
+  "captured": "2026-10-21",
+  "assets": [
+    {
+      "file": "success-heading.svg",
+      "nodeId": "64:4124",
+      "designSlot": {
+        "width": 351,
+        "height": 94.62879943847656
+      },
+      "svgRoot": "<svg width=\"351\" height=\"95\" viewBox=\"0 0 351 95\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">"
+    },
+    {
+      "file": "ring-track.svg",
+      "nodeId": "64:4146",
+      "designSlot": {
+        "width": 150,
+        "height": 150
+      },
+      "svgRoot": "<svg width=\"150\" height=\"150\" viewBox=\"0 0 150 150\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">"
+    },
+    {
+      "file": "ring-progress.svg",
+      "nodeId": "64:4147",
+      "designSlot": {
+        "width": 150,
+        "height": 150
+      },
+      "svgRoot": "<svg width=\"150\" height=\"150\" viewBox=\"0 0 150 150\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">"
+    },
+    {
+      "file": "status-dot.svg",
+      "nodeId": "64:4142",
+      "designSlot": {
+        "width": 7,
+        "height": 7
+      },
+      "svgRoot": "<svg width=\"7\" height=\"7\" viewBox=\"0 0 7 7\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">"
+    },
+    {
+      "file": "traffic-dot.svg",
+      "nodeId": "64:4154",
+      "designSlot": {
+        "width": 8,
+        "height": 8
+      },
+      "svgRoot": "<svg width=\"8\" height=\"8\" viewBox=\"0 0 8 8\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">"
+    },
+    {
+      "file": "duration-dot.svg",
+      "nodeId": "64:4159",
+      "designSlot": {
+        "width": 8,
+        "height": 8
+      },
+      "svgRoot": "<svg width=\"8\" height=\"8\" viewBox=\"0 0 8 8\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">"
+    },
+    {
+      "file": "coins.svg",
+      "nodeId": "64:4164",
+      "designSlot": {
+        "width": 18,
+        "height": 18
+      },
+      "svgRoot": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 18 18\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">"
+    },
+    {
+      "file": "wifi.svg",
+      "nodeId": "64:4167",
+      "designSlot": {
+        "width": 22,
+        "height": 22
+      },
+      "svgRoot": "<svg width=\"22\" height=\"22\" viewBox=\"0 0 22 22\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">"
+    },
+    {
+      "file": "install-heading.svg",
+      "nodeId": "64:4235",
+      "designSlot": {
+        "width": 287,
+        "height": 30
+      },
+      "svgRoot": "<svg width=\"193\" height=\"18\" viewBox=\"0 0 193 18\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">"
+    },
+    {
+      "file": "phone.svg",
+      "nodeId": "64:4246",
+      "designSlot": {
+        "width": 319,
+        "height": 200
+      },
+      "svgRoot": "<svg width=\"319\" height=\"200\" viewBox=\"0 0 319 200\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">"
+    },
+    {
+      "file": "share.svg",
+      "nodeId": "91:4808",
+      "designSlot": {
+        "width": 20,
+        "height": 20
+      },
+      "svgRoot": "<svg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">"
+    },
+    {
+      "file": "qr.svg",
+      "nodeId": "91:4811",
+      "designSlot": {
+        "width": 20,
+        "height": 20
+      },
+      "svgRoot": "<svg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">"
+    }
+  ]
+}

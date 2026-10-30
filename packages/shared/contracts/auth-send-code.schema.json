@@ -1,0 +1,29 @@
+{
+  "properties": {
+    "challenge_id": {
+      "format": "uuid",
+      "title": "Challenge Id",
+      "type": "string"
+    },
+    "email": {
+      "title": "Email",
+      "type": "string"
+    },
+    "expires_in": {
+      "title": "Expires In",
+      "type": "integer"
+    },
+    "resend_after_seconds": {
+      "title": "Resend After Seconds",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "challenge_id",
+    "email",
+    "expires_in",
+    "resend_after_seconds"
+  ],
+  "title": "SendCodeResponse",
+  "type": "object"
+}

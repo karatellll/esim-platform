@@ -1,0 +1,44 @@
+{
+  "$defs": {
+    "AuthErrorDetail": {
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "retry_after_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retry After Seconds"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "AuthErrorDetail",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "error": {
+      "$ref": "#/$defs/AuthErrorDetail"
+    }
+  },
+  "required": [
+    "error"
+  ],
+  "title": "AuthErrorResponse",
+  "type": "object"
+}

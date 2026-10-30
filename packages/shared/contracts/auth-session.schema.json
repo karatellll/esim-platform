@@ -1,0 +1,72 @@
+{
+  "$defs": {
+    "AuthUser": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "email": {
+          "title": "Email",
+          "type": "string"
+        },
+        "email_verified": {
+          "default": true,
+          "title": "Email Verified",
+          "type": "boolean"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "created_at"
+      ],
+      "title": "AuthUser",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "user": {
+      "$ref": "#/$defs/AuthUser"
+    },
+    "access_token": {
+      "title": "Access Token",
+      "type": "string"
+    },
+    "token_type": {
+      "const": "Bearer",
+      "default": "Bearer",
+      "title": "Token Type",
+      "type": "string"
+    },
+    "expires_in": {
+      "title": "Expires In",
+      "type": "integer"
+    },
+    "refresh_token": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Refresh Token"
+    }
+  },
+  "required": [
+    "user",
+    "access_token",
+    "expires_in"
+  ],
+  "title": "SessionResponse",
+  "type": "object"
+}

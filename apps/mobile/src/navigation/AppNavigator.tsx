@@ -6,11 +6,17 @@ import { createRef, useRef, type RefObject } from 'react';
 import { View } from 'react-native';
 
 import { FloatingTabBar } from '../components/FloatingTabBar';
-import { EmptyScreen } from '../screens/EmptyScreen';
+import { MyEsimsScreen } from '../screens/MyEsimsScreen';
+import { HomeScreen } from '../screens/HomeScreen';
 import { CountriesScreen } from '../screens/CountriesScreen';
 import { CountryTariffsScreen } from '../screens/CountryTariffsScreen';
 import { RegionTariffsScreen } from '../screens/RegionTariffsScreen';
-import { ProfileGuestScreen } from '../screens/ProfileGuestScreen';
+import { SavingsScreen } from '../screens/SavingsScreen';
+import { EmailSignInScreen } from '../screens/EmailSignInScreen';
+import { EmailCodeScreen } from '../screens/EmailCodeScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
+import { CheckoutScreen } from '../screens/CheckoutScreen';
+import { OrderStatusScreen } from '../screens/OrderStatusScreen';
 import type { RootStackParamList } from './stack';
 import { colors } from '../theme';
 import { type RootTabParamList, tabs } from './tabs';
@@ -49,7 +55,7 @@ function MainTabs() {
         <Tab.Screen
           key={tab.name}
           name={tab.name}
-          component={tab.name === 'Countries' ? CountriesScreen : tab.name === 'Profile' ? ProfileGuestScreen : EmptyScreen}
+          component={tab.name === 'Search' ? HomeScreen : tab.name === 'Countries' ? CountriesScreen : tab.name === 'Profile' ? ProfileScreen : tab.name === 'Savings' ? SavingsScreen : MyEsimsScreen}
           options={{ title: tab.label }}
         />
       ))}
@@ -60,7 +66,11 @@ function MainTabs() {
 export function AppNavigator() {
   return <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
     <Stack.Screen name="Main" component={MainTabs} />
+    <Stack.Screen name="EmailSignIn" component={EmailSignInScreen} />
+    <Stack.Screen name="EmailCode" component={EmailCodeScreen} />
     <Stack.Screen name="CountryTariffs" component={CountryTariffsScreen} />
     <Stack.Screen name="RegionTariffs" component={RegionTariffsScreen} />
+    <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ presentation: 'transparentModal', animation: 'fade', contentStyle: { backgroundColor: 'transparent' } }} />
+    <Stack.Screen name="OrderStatus" component={OrderStatusScreen} />
   </Stack.Navigator>;
 }

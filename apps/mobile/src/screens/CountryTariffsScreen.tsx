@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CountryFlag } from '../components/CountryFlag';
 import { useCatalogTariffs } from '../hooks/useCatalogTariffs';
+import { recommendTariff } from '../home/recommendation';
 import type { RootStackParamList } from '../navigation/stack';
 import { getTariffHeading } from '../tariffs/countryTitle';
 import { durationKey, formatDataAmount, formatDuration, formatTariffPrice, getDefaultDuration, getDefaultTariff, getDurations, getTariffsForDuration } from '../tariffs/tariffs';
@@ -29,10 +30,12 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
   const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
   const country = catalog.state.status === 'ready' ? catalog.state.data.esim : route.params.country;
   const tariffs = catalog.state.status === 'ready' ? catalog.state.data.tariffs : [];
+  const recommended = recommendTariff(tariffs, route.params);
   const durations = getDurations(tariffs);
-  const activeDuration = durations.some((duration) => durationKey(duration) === durationSelection) ? durationSelection : getDefaultDuration(tariffs);
+  const activeDuration = durations.some((duration) => durationKey(duration) === durationSelection) ? durationSelection : recommended ? durationKey(recommended.duration) : getDefaultDuration(tariffs);
   const visibleTariffs = getTariffsForDuration(tariffs, activeDuration);
-  const selected = visibleTariffs.find((tariff) => tariff.id === tariffSelection) ?? getDefaultTariff(visibleTariffs);
+  const selected = visibleTariffs.find((tariff) => tariff.id === tariffSelection)
+    ?? visibleTariffs.find((tariff) => tariff.id === recommended?.id) ?? getDefaultTariff(visibleTariffs);
   const isGlobal = country.country_iso2?.toUpperCase() === 'XG';
   const heading = getTariffHeading(country);
   const countryName = heading.label;
@@ -127,8 +130,7 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
           <Text style={styles.totalPrice} numberOfLines={1} adjustsFontSizeToFit testID="selected-tariff-price">{formatTariffPrice(selected)}</Text>
           <Text style={styles.totalDetails} numberOfLines={1} testID="selected-tariff-details">{formatDataAmount(selected)} · {formatDuration(selected.duration)}</Text>
         </View>
-        <Pressable onPress={() => setNotice({ title: 'Выбранный тариф', message: `${summary}\n\nПокупка будет доступна позже.` })} accessibilityRole="button" testID="tariff-buy" style={({ pressed }) => [styles.buy, pressed && styles.pressed]}><Text style={styles.buttonText}>Купить</Text></Pressable>
-        {Platform.OS === 'web' && <View style={styles.homeIndicator} />}
+        <Pressable onPress={() => navigation.navigate('Checkout', { country, tariff: selected })} accessibilityRole="button" testID="tariff-buy" style={({ pressed }) => [styles.buy, pressed && styles.pressed]}><Text style={styles.buttonText}>Купить</Text></Pressable>
       </View>}
       <Modal visible={notice !== null} transparent animationType="fade" onRequestClose={() => setNotice(null)}>
         <View style={styles.modalBackdrop}>
@@ -184,7 +186,6 @@ const styles = StyleSheet.create({
   totalDetails: { fontFamily, fontSize: 14, lineHeight: 20, color: colors.mutedText, letterSpacing: -0.056 },
   buy: { width: 170, maxWidth: '52%', height: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: colors.tariffAccent },
   buttonText: { fontFamily, fontSize: 16, lineHeight: 22, fontWeight: '600', color: colors.text },
-  homeIndicator: { position: 'absolute', bottom: 8, left: '50%', marginLeft: -67, width: 134, height: 5, borderRadius: 100, backgroundColor: colors.text },
   status: { paddingVertical: 32, alignItems: 'center', gap: 16 },
   statusText: { fontFamily, fontSize: 14, lineHeight: 20, color: colors.mutedText, textAlign: 'center' },
   retry: { borderRadius: 16, backgroundColor: colors.tariffAccent, paddingHorizontal: 24, paddingVertical: 14, alignItems: 'center' },

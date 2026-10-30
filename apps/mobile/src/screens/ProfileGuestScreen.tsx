@@ -1,3 +1,7 @@
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useAuth } from '../auth/AuthProvider';
+import type { RootStackParamList } from '../navigation/stack';
 import { Image, type ImageSource } from 'expo-image';
 import { useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -35,6 +39,8 @@ function MenuRow({ label, icon, testID, detail, divider, onPress }: MenuRowProps
 }
 
 export function ProfileGuestScreen() {
+  const auth = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -62,10 +68,11 @@ export function ProfileGuestScreen() {
         <Text style={styles.subtitle}>Покупки, копилка и паспорт сохранятся,{contentWidth >= 375 ? '\n' : ' '}даже если смените телефон</Text>
       </View>
       <View style={styles.signInSlot}>
-        <Pressable accessibilityRole="button" testID="profile-sign-in" onPress={() => setNotice({ title: 'Войти по почте', message: 'Вход по почте скоро появится.' })} style={({ pressed }) => [styles.signIn, pressed && styles.pressed]}>
-          <Text style={styles.signInText}>Войти по почте</Text>
+        <Pressable accessibilityRole="button" testID="profile-sign-in" disabled={auth.loading} onPress={() => navigation.navigate('EmailSignIn')} style={({ pressed }) => [styles.signIn, pressed && styles.pressed]}>
+          <Text style={styles.signInText}>{auth.loading ? 'Проверяем вход…' : 'Войти по почте'}</Text>
         </Pressable>
       </View>
+      {auth.restoreError && <Pressable onPress={() => void auth.retryRestore().catch(() => {})} accessibilityRole="button" testID="profile-restore-retry"><Text style={styles.noticeText}>{auth.restoreError} Нажмите, чтобы повторить.</Text></Pressable>}
       <View style={styles.card} testID="profile-help">
         <Text style={styles.cardTitle} accessibilityRole="header">Помощь</Text>
         <MenuRow label="Как установить eSIM" icon={assets.install} testID="profile-install" divider onPress={() => setNotice({ title: 'Как установить eSIM', message: 'Инструкция по установке скоро появится.' })} />

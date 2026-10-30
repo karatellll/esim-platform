@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 
 
 
-function getApiBaseUrl(): string {
+export function getApiBaseUrl(): string {
   const configuredUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
   if (configuredUrl) return configuredUrl.replace(/\/+$/, '');
 

@@ -40,7 +40,7 @@
           "anyOf": [
             {
               "minimum": 0,
-              "type": "integer"
+              "type": "number"
             },
             {
               "type": "null"
@@ -85,7 +85,7 @@
         "price_amount_minor": {
           "minimum": 0,
           "title": "Price Amount Minor",
-          "type": "integer"
+          "type": "number"
         },
         "price_currency": {
           "pattern": "^[A-Z]{3}$",

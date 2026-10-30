@@ -1,0 +1,218 @@
+{
+  "$defs": {
+    "OrderEsim": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "OrderEsim",
+      "type": "object"
+    },
+    "OrderListItem": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "order_number": {
+          "title": "Order Number",
+          "type": "integer"
+        },
+        "state": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "State",
+          "type": "string"
+        },
+        "total_amount_minor": {
+          "minimum": 0,
+          "title": "Total Amount Minor",
+          "type": "number"
+        },
+        "total_currency": {
+          "pattern": "^[A-Z]{3}$",
+          "title": "Total Currency",
+          "type": "string"
+        },
+        "esim": {
+          "$ref": "#/$defs/OrderEsim"
+        },
+        "tariff": {
+          "$ref": "#/$defs/OrderTariff"
+        },
+        "remaining": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TariffDataAmount"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "esim_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Esim Status"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "order_number",
+        "state",
+        "total_amount_minor",
+        "total_currency",
+        "esim",
+        "tariff",
+        "created_at"
+      ],
+      "title": "OrderListItem",
+      "type": "object"
+    },
+    "OrderTariff": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "data_amount": {
+          "$ref": "#/$defs/TariffDataAmount"
+        },
+        "duration": {
+          "$ref": "#/$defs/TariffDuration"
+        }
+      },
+      "required": [
+        "id",
+        "data_amount",
+        "duration"
+      ],
+      "title": "OrderTariff",
+      "type": "object"
+    },
+    "OrdersMeta": {
+      "properties": {
+        "has_more": {
+          "title": "Has More",
+          "type": "boolean"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Cursor"
+        }
+      },
+      "required": [
+        "has_more"
+      ],
+      "title": "OrdersMeta",
+      "type": "object"
+    },
+    "TariffDataAmount": {
+      "properties": {
+        "amount": {
+          "minimum": 0,
+          "title": "Amount",
+          "type": "number"
+        },
+        "unit": {
+          "maxLength": 16,
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "unit"
+      ],
+      "title": "TariffDataAmount",
+      "type": "object"
+    },
+    "TariffDuration": {
+      "properties": {
+        "amount": {
+          "exclusiveMinimum": 0,
+          "title": "Amount",
+          "type": "integer"
+        },
+        "unit": {
+          "maxLength": 16,
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "unit"
+      ],
+      "title": "TariffDuration",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "data": {
+      "items": {
+        "$ref": "#/$defs/OrderListItem"
+      },
+      "title": "Data",
+      "type": "array"
+    },
+    "meta": {
+      "$ref": "#/$defs/OrdersMeta"
+    }
+  },
+  "required": [
+    "data",
+    "meta"
+  ],
+  "title": "OrdersEnvelope",
+  "type": "object"
+}

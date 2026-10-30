@@ -114,8 +114,7 @@ export function RegionTariffsScreen({ route, navigation }: Props) {
           </>}
     </ScrollView>
     {selected && <View style={[styles.footer, { paddingBottom: bottomPadding }]}>
-      <Pressable onPress={() => setOverlay({ type: 'notice', title: 'Выбранный тариф', message: `${summary}\n\nПокупка будет доступна позже.` })} style={({ pressed }) => [styles.buy, pressed && styles.pressed]} accessibilityRole="button" testID="region-buy"><Text style={styles.buttonText}>Купить за {formatTariffPrice(selected)}</Text></Pressable>
-      {Platform.OS === 'web' && <View style={styles.homeIndicator} />}
+      <Pressable onPress={() => { if (data) navigation.navigate('Checkout', { country: data.esim, tariff: selected }); }} style={({ pressed }) => [styles.buy, pressed && styles.pressed]} accessibilityRole="button" testID="region-buy"><Text style={styles.buttonText}>Купить за {formatTariffPrice(selected)}</Text></Pressable>
     </View>}
     <Modal visible={overlay !== null} transparent animationType="fade" onRequestClose={() => setOverlay(null)}>
       <View style={styles.modalBackdrop}>
@@ -174,7 +173,6 @@ const styles = StyleSheet.create({
   footer: { position: 'absolute', bottom: 0, width: '100%', maxWidth: 600, alignSelf: 'center', paddingTop: 12, paddingHorizontal: 12, backgroundColor: colors.background },
   buy: { height: 56, borderRadius: 16, backgroundColor: colors.tariffAccent, alignItems: 'center', justifyContent: 'center' },
   buttonText: { fontFamily, fontSize: 16, lineHeight: 22, fontWeight: '600', letterSpacing: -0.064, color: colors.text },
-  homeIndicator: { position: 'absolute', bottom: 8, left: '50%', marginLeft: -67, width: 134, height: 5, borderRadius: 100, backgroundColor: colors.text },
   status: { paddingVertical: 24, gap: 16, alignItems: 'center' },
   statusText: { fontFamily, fontSize: 14, lineHeight: 20, color: colors.mutedText, textAlign: 'center' },
   action: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: 16, backgroundColor: colors.tariffAccent },

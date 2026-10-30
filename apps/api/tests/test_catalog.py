@@ -163,7 +163,10 @@ def test_browser_origin_is_allowed_without_exposing_credentials():
         denied = client.get("/api/catalog/categories", headers={"Origin": "https://unrelated.example"})
 
     assert allowed.headers["Access-Control-Allow-Origin"] == "http://localhost:8081"
-    assert "Access-Control-Allow-Credentials" not in allowed.headers
+    # Email login now uses an HttpOnly refresh cookie. CORS allows it only for
+    # the explicit app origin; this header does not expose any secret token.
+    assert allowed.headers["Access-Control-Allow-Credentials"] == "true"
+    assert TOKEN not in allowed.text and CLIENT_TOKEN not in allowed.text
     assert "Access-Control-Allow-Origin" not in denied.headers
 
 
@@ -379,7 +382,6 @@ def test_catalog_preserves_optional_price_and_currency(price_fields):
     {"min_price_amount": -1},
     {"min_price_amount": True},
     {"min_price_amount": "199"},
-    {"min_price_amount": 1.5},
     {"min_price_currency": "not-a-currency"},
 ])
 def test_malformed_price_is_not_forwarded(price_fields):

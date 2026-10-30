@@ -1,0 +1,44 @@
+{
+  "$defs": {
+    "AuthUser": {
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "email": {
+          "title": "Email",
+          "type": "string"
+        },
+        "email_verified": {
+          "default": true,
+          "title": "Email Verified",
+          "type": "boolean"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "created_at"
+      ],
+      "title": "AuthUser",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "user": {
+      "$ref": "#/$defs/AuthUser"
+    }
+  },
+  "required": [
+    "user"
+  ],
+  "title": "MeResponse",
+  "type": "object"
+}

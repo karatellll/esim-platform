@@ -16,10 +16,15 @@ test('zero is a valid minimum price', () => {
 });
 
 test('absent or malformed amounts never become a zero price', () => {
-  for (const amount of [null, undefined, NaN, Infinity, -1, '199', true, 1.5]) {
+  for (const amount of [null, undefined, NaN, Infinity, -1, '199', true, Number.MAX_SAFE_INTEGER + 1]) {
     assert.equal(getCatalogPrice(esim(amount)), null);
   }
   assert.equal(formatCatalogPrice(null), '—');
+});
+
+test('documented fractional major units retain their value', () => {
+  assert.deepEqual(getCatalogPrice(esim(45.5)), { amount: 45.5, currency: 'RUB' });
+  assert.equal(formatCatalogPrice(getCatalogPrice(esim(45.5))).replace(/\s/g, ' '), 'от 45,5 ₽');
 });
 
 test('price requires a currency', () => {

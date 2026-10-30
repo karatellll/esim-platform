@@ -6,7 +6,7 @@ type PricedEsim = Pick<CatalogEsim, 'min_price_amount' | 'min_price_currency'>;
 export function getCatalogPrice(esim: PricedEsim): CatalogPrice | null {
   const amount = esim.min_price_amount;
   const currency = esim.min_price_currency;
-  if (typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount < 0
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount > Number.MAX_SAFE_INTEGER || amount < 0
     || typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency)) return null;
   return { amount, currency };
 }

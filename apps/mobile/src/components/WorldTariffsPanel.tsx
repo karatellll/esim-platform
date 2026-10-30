@@ -1,4 +1,6 @@
 import { Image } from 'expo-image';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -7,6 +9,7 @@ import type { CatalogEsim } from '../../../../packages/shared/contracts/catalog'
 import { useCatalogTariffs } from '../hooks/useCatalogTariffs';
 import { durationKey, formatDataAmount, formatDuration, formatTariffPrice, getDefaultDuration, getDefaultTariff, getDurations, getTariffsForDuration } from '../tariffs/tariffs';
 import { colors } from '../theme';
+import type { RootStackParamList } from '../navigation/stack';
 
 type Props = { bundle: CatalogEsim | null; onReloadCatalog: () => void };
 const globe = require('../../assets/world/globe.svg');
@@ -21,6 +24,7 @@ const coverageFlags = [
 ];
 
 export function WorldTariffsPanel({ bundle, onReloadCatalog }: Props) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const catalog = useCatalogTariffs(bundle?.id ?? null);
   const [durationSelection, setDurationSelection] = useState<string | null>(null);
   const [tariffSelection, setTariffSelection] = useState<string | null>(null);
@@ -76,7 +80,7 @@ export function WorldTariffsPanel({ bundle, onReloadCatalog }: Props) {
           </Pressable>;
         })}
       </View>
-      {selected && <Pressable style={({ pressed }) => [styles.buy, pressed && styles.pressed]} accessibilityRole="button" testID="world-buy" onPress={() => setNotice({ title: 'Выбранный тариф', message: `${data.esim.display_name}\n${formatDataAmount(selected)} · ${formatDuration(selected.duration)}\n${formatTariffPrice(selected)}\n\nПокупка будет доступна позже.` })}>
+      {selected && <Pressable style={({ pressed }) => [styles.buy, pressed && styles.pressed]} accessibilityRole="button" testID="world-buy" onPress={() => navigation.navigate('Checkout', { country: data.esim, tariff: selected })}>
         <Text style={styles.buttonText} accessibilityLiveRegion="polite">Купить за {formatTariffPrice(selected)}</Text>
       </Pressable>}
     </>}

@@ -25,6 +25,7 @@ node_modules/
 
 # Build output and reports
 dist/
+dist-*/
 dist-native/
 build/
 coverage/
@@ -41,3 +42,6 @@ htmlcov/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Local authentication data, including SQLite WAL files
+/apps/api/var/

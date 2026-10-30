@@ -1,0 +1,34 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "esim_id": {
+      "format": "uuid",
+      "title": "Esim Id",
+      "type": "string"
+    },
+    "tariff_id": {
+      "format": "uuid",
+      "title": "Tariff Id",
+      "type": "string"
+    },
+    "promo_code": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Promo Code"
+    }
+  },
+  "required": [
+    "esim_id",
+    "tariff_id"
+  ],
+  "title": "CheckoutSelection",
+  "type": "object"
+}
