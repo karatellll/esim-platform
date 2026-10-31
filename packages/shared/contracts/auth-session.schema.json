@@ -11,6 +11,23 @@
           "title": "Email",
           "type": "string"
         },
+        "display_name": {
+          "default": "",
+          "title": "Display Name",
+          "type": "string"
+        },
+        "avatar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Avatar"
+        },
         "email_verified": {
           "default": true,
           "title": "Email Verified",

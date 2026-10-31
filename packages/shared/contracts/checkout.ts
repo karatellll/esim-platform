@@ -7,6 +7,15 @@ export interface CheckoutSelection {
   promo_code?: string;
 }
 
+// A confirmed quote adjustment, never a client-side discount calculation.
+// The verified SDK contract has no redemption: promotion is null and a code
+// returns promo_unavailable. The applied Figma view requires this server field.
+export interface CheckoutPromotion {
+  code: string;
+  subtotal_amount: number;
+  discount_amount: number;
+}
+
 export interface CheckoutSummaryResponse {
   data: {
     country: CatalogEsim;
@@ -18,6 +27,7 @@ export interface CheckoutSummaryResponse {
     quote_id: string | null;
     expires_at: string | null;
     existing_order_id: string | null;
+    promotion: CheckoutPromotion | null;
   };
 }
 

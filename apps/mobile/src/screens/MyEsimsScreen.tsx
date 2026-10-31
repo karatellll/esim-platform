@@ -2,15 +2,21 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform } from 'react-native';
+import { ScrollView } from '../ui/ScrollView';
+import { Pressable, View } from '../ui/Surface';
+import { fonts, StyleSheet } from '../ui/design';
+import { Text } from '../ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../auth/AuthProvider';
 import type { RootStackParamList } from '../navigation/stack';
 import type { RootTabParamList } from '../navigation/tabs';
-import { colors, tabBarLayout } from '../theme';
+import { colors, getTabBarBottom, tabBarLayout } from '../theme';
 import { useUserOrders } from '../hooks/useUserOrders';
 import { PurchasedOrders } from '../components/PurchasedOrders';
+import { MyEsimsSkeleton } from '../components/SkeletonLayouts';
+import { useSkeletonGate } from '../hooks/useSkeletonGate';
 
 type Navigation = CompositeNavigationProp<BottomTabNavigationProp<RootTabParamList>, NativeStackNavigationProp<RootStackParamList>>;
 
@@ -28,8 +34,10 @@ export function MyEsimsScreen() {
   const insets = useSafeAreaInsets();
   const auth = useAuth();
   const orders = useUserOrders();
+  const loading = auth.user !== null && orders.state.status === 'loading';
+  const skeleton = useSkeletonGate(loading);
   const topInset = Platform.OS === 'web' ? 48 : insets.top;
-  const bottomInset = Platform.OS === 'web' ? 36 : Math.max(insets.bottom, 12) + 2;
+  const bottomInset = getTabBarBottom(insets.bottom, Platform.OS === 'web');
 
   return <View style={styles.screen} testID="screen-esims">
     <ScrollView style={styles.screen} testID="my-esims-scroll" showsVerticalScrollIndicator={false}
@@ -42,12 +50,13 @@ export function MyEsimsScreen() {
         <View style={styles.headingSlot}>
           <Image source={assets.heading} style={styles.heading} contentFit="contain" accessible={false} />
         </View>
+        <Pressable onPress={() => navigation.navigate('Countries')} accessibilityRole="button" accessibilityLabel="Добавить eSIM" style={styles.addButton}><Text style={styles.addText}>+</Text></Pressable>
       </View>
 
-      {auth.user && orders.state.status === 'loading' ? <View style={styles.status}><ActivityIndicator color={colors.accent} /><Text style={styles.description}>Загружаем ваши eSIM…</Text></View>
+      {auth.user && orders.state.status === 'loading' ? skeleton.timedOut ? <View style={styles.status}><Text style={styles.description}>Не удалось загрузить ваши eSIM.</Text><Pressable onPress={() => { skeleton.restart(); orders.reload(); }} accessibilityRole="button" style={[styles.button, styles.signIn]}><Text style={styles.buttonText}>Повторить</Text></Pressable></View> : skeleton.visible ? <MyEsimsSkeleton /> : null
         : auth.user && orders.state.status === 'error' ? <View style={styles.status} testID="my-esims-load-error"><Text style={styles.description}>{orders.state.message}</Text><Pressable onPress={orders.reload} accessibilityRole="button" style={[styles.button, styles.signIn]}><Text style={styles.buttonText}>Повторить</Text></Pressable></View>
         : auth.user && orders.state.status === 'ready' && orders.state.response.data.length > 0 ? <>
-          <PurchasedOrders orders={orders.state.response.data} onSelect={(orderId) => navigation.navigate('OrderStatus', { orderId })} />
+          <PurchasedOrders orders={orders.state.response.data} onSelect={(orderId) => navigation.navigate('OrderStatus', { orderId, details: true })} />
           {orders.state.error && <Text style={styles.description}>{orders.state.error}</Text>}
           {orders.state.response.meta.has_more && orders.state.response.meta.next_cursor && <Pressable onPress={() => void orders.loadMore()} disabled={orders.state.loadingMore} accessibilityRole="button" testID="my-esims-load-more" style={[styles.button, styles.signIn]}><Text style={styles.buttonText}>{orders.state.loadingMore ? 'Загружаем…' : 'Ещё заказы'}</Text></Pressable>}
           <Pressable onPress={() => navigation.navigate('Countries')} accessibilityRole="button" style={[styles.button, styles.chooseCountry]}><Text style={styles.buttonText}>Выбрать новую eSIM</Text></Pressable>
@@ -83,16 +92,18 @@ export function MyEsimsScreen() {
   </View>;
 }
 
-const fontFamily = Platform.select({ ios: 'System', android: 'sans-serif', default: 'system-ui' });
+const fontFamily = fonts.text;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  status: { borderRadius: 28, padding: 24, gap: 16, backgroundColor: colors.surface },
-  content: { width: '100%', maxWidth: 375, alignSelf: 'center', gap: 12 },
-  header: { height: 42, paddingHorizontal: 12, paddingBottom: 4 },
+  status: { borderRadius: 28, borderCurve: 'continuous', padding: 24, gap: 16, backgroundColor: colors.surface },
+  content: { width: '100%', gap: 12 },
+  header: { height: 42, paddingHorizontal: 12, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headingSlot: { width: 137, height: 38 },
   // Text SVGs retain Figma's original glyphs. Export crops are positioned using
   // their render bounds inside the original text slots, without scaling.
   heading: { position: 'absolute', left: 1.743164, top: 8.496094, width: 134, height: 22 },
+  addButton: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  addText: { color: colors.text, fontSize: 23, lineHeight: 27, fontWeight: '500' },
   emptyCard: { width: '100%', paddingTop: 28, paddingBottom: 20, paddingHorizontal: 20, gap: 14,
     alignItems: 'center', backgroundColor: colors.surface, borderRadius: 28 },
   mascot: { width: 118, height: 126 },
@@ -105,7 +116,7 @@ const styles = StyleSheet.create({
   description: { width: '100%', fontFamily, fontSize: 15, lineHeight: 21, letterSpacing: -0.06,
     color: 'rgba(255,255,255,0.6)', textAlign: 'center', includeFontPadding: false },
   actions: { width: '100%', gap: 8 },
-  button: { height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  button: { height: 56, borderRadius: 16, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   chooseCountry: { backgroundColor: colors.tariffAccent },
   signIn: { backgroundColor: colors.selectedTab },
   buttonText: { fontFamily, fontSize: 16, lineHeight: 22, fontWeight: '600', letterSpacing: -0.064,

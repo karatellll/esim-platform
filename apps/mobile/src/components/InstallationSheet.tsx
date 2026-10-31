@@ -1,6 +1,10 @@
 import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Linking, Platform, useWindowDimensions } from 'react-native';
+import { ScrollView } from '../ui/ScrollView';
+import { Pressable, View } from '../ui/Surface';
+import { fonts, StyleSheet } from '../ui/design';
+import { Text } from '../ui/Text';
 import type { OrderData } from '../../../../packages/shared/contracts/checkout';
 import { appleInstallationUrl, manualDetails, supportsQuickInstall, type InstallationMethod } from '../orders/installation';
 import { copyInstallationValue, exportInstallationQr } from '../orders/installationActions';
@@ -133,47 +137,47 @@ export function InstallationSheet({ order, topInset, bottomInset, onClose, onRef
   </View>;
 }
 
-const fontFamily = Platform.select({ ios: 'System', android: 'sans-serif', default: 'system-ui' });
+const fontFamily = fonts.text;
 const styles = StyleSheet.create({
   overlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 10, justifyContent: 'flex-end' },
   backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet: { width: '100%', maxWidth: 375, alignSelf: 'center', backgroundColor: '#1C1C1F', borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden' },
+  sheet: { width: '100%', backgroundColor: '#1C1C1F', borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden' },
   content: { flexGrow: 1, paddingTop: 28, paddingHorizontal: 12, gap: 14 },
-  handle: { position: 'absolute', top: 8, left: '50%', marginLeft: -18, width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.25)' },
+  handle: { position: 'absolute', top: 8, left: '50%', marginLeft: -18, width: 36, height: 5, borderRadius: 3, borderCurve: 'continuous', backgroundColor: 'rgba(255,255,255,0.25)' },
   header: { height: 40, flexShrink: 0, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' },
   headingSlot: { flex: 1, height: 40 },
   heading: { position: 'absolute', left: 0.45703125, top: 11.796875, width: 193, height: 18 },
-  close: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.selectedTab, alignItems: 'center', justifyContent: 'center' },
+  close: { width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous', backgroundColor: colors.selectedTab, alignItems: 'center', justifyContent: 'center' },
   icon: { width: 20, height: 20 },
-  tabs: { flexDirection: 'row', flexShrink: 0, padding: 4, borderRadius: 14, backgroundColor: colors.surface },
-  tab: { flex: 1, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  tabs: { flexDirection: 'row', flexShrink: 0, padding: 4, borderRadius: 14, borderCurve: 'continuous', backgroundColor: colors.surface },
+  tab: { flex: 1, height: 36, borderRadius: 10, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   selectedTab: { backgroundColor: colors.text },
   tabText: { fontFamily, fontSize: 14, lineHeight: 20, letterSpacing: -0.056, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
   selectedText: { color: colors.ink },
-  quickCard: { flexShrink: 0, paddingHorizontal: 16, paddingBottom: 20, borderRadius: 24, gap: 12, alignItems: 'center', backgroundColor: colors.surface },
+  quickCard: { flexShrink: 0, paddingHorizontal: 16, paddingBottom: 20, borderRadius: 24, borderCurve: 'continuous', gap: 12, alignItems: 'center', backgroundColor: colors.surface },
   phoneSlot: { width: '100%', height: 200, overflow: 'hidden', alignItems: 'center' },
   phone: { width: 319, height: 200 },
   quickTitle: { fontFamily, fontSize: 18, lineHeight: 24, letterSpacing: -0.072, fontWeight: '600', color: colors.text, textAlign: 'center' },
   muted: { fontFamily, fontSize: 14, lineHeight: 20, letterSpacing: -0.056, color: 'rgba(255,255,255,0.55)', textAlign: 'center' },
-  primary: { flexShrink: 0, height: 56, borderRadius: 16, backgroundColor: colors.lime, alignItems: 'center', justifyContent: 'center' },
+  primary: { flexShrink: 0, height: 56, borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.lime, alignItems: 'center', justifyContent: 'center' },
   primaryText: { fontFamily, fontSize: 16, lineHeight: 22, letterSpacing: -0.064, fontWeight: '600', color: colors.ink },
-  qrCard: { flexGrow: 1, flexShrink: 0, minHeight: 308, paddingHorizontal: 16, paddingVertical: 20, gap: 14, alignItems: 'center', borderRadius: 24, backgroundColor: colors.surface },
-  qrWhite: { padding: 14, borderRadius: 20, backgroundColor: colors.text },
+  qrCard: { flexGrow: 1, flexShrink: 0, minHeight: 308, paddingHorizontal: 16, paddingVertical: 20, gap: 14, alignItems: 'center', borderRadius: 24, borderCurve: 'continuous', backgroundColor: colors.surface },
+  qrWhite: { padding: 14, borderRadius: 20, borderCurve: 'continuous', backgroundColor: colors.text },
   qrImage: { width: 176, height: 176 },
   actions: { flexDirection: 'row', flexShrink: 0, gap: 8 },
-  secondary: { flex: 1, height: 56, borderRadius: 16, backgroundColor: colors.selectedTab, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  secondary: { flex: 1, height: 56, borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.selectedTab, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   actionText: { fontFamily, fontSize: 16, lineHeight: 22, letterSpacing: -0.064, fontWeight: '600', color: colors.text },
-  manualCard: { flexShrink: 0, paddingHorizontal: 16, paddingVertical: 4, borderRadius: 24, backgroundColor: colors.surface },
+  manualCard: { flexShrink: 0, paddingHorizontal: 16, paddingVertical: 4, borderRadius: 24, borderCurve: 'continuous', backgroundColor: colors.surface },
   field: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   divider: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
   fieldCopy: { flex: 1, minWidth: 0, gap: 2 },
   fieldLabel: { fontFamily, fontSize: 13, lineHeight: 19, letterSpacing: -0.052, color: colors.mutedText },
   fieldValue: { fontFamily, fontSize: 16, lineHeight: 22, letterSpacing: -0.064, fontWeight: '600', color: colors.text },
-  copyButton: { height: 32, paddingHorizontal: 12, borderRadius: 14, backgroundColor: colors.selectedTab, justifyContent: 'center' },
+  copyButton: { height: 32, paddingHorizontal: 12, borderRadius: 14, borderCurve: 'continuous', backgroundColor: colors.selectedTab, justifyContent: 'center' },
   copyText: { fontFamily, fontSize: 13, lineHeight: 19, letterSpacing: -0.052, fontWeight: '600', color: colors.text },
-  steps: { flexShrink: 0, padding: 16, borderRadius: 24, gap: 8, backgroundColor: colors.surface },
+  steps: { flexShrink: 0, padding: 16, borderRadius: 24, borderCurve: 'continuous', gap: 8, backgroundColor: colors.surface },
   step: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  stepNumber: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.tariffAccent, alignItems: 'center', justifyContent: 'center' },
+  stepNumber: { width: 24, height: 24, borderRadius: 12, borderCurve: 'continuous', backgroundColor: colors.tariffAccent, alignItems: 'center', justifyContent: 'center' },
   stepNumberText: { fontFamily, fontSize: 12, lineHeight: 18, fontWeight: '700', letterSpacing: -0.048, color: colors.text },
   stepText: { flex: 1, fontFamily, fontSize: 14, lineHeight: 20, letterSpacing: -0.056, color: colors.text },
   spacer: { flexGrow: 1 },
@@ -181,7 +185,7 @@ const styles = StyleSheet.create({
   waiting: { padding: 12, gap: 12, alignItems: 'center', justifyContent: 'center', minHeight: 160 },
   error: { fontFamily, fontSize: 13, lineHeight: 19, color: '#FFB59C', textAlign: 'center' },
   feedback: { fontFamily, fontSize: 13, lineHeight: 19, color: colors.lime, textAlign: 'center' },
-  instructions: { padding: 16, borderRadius: 24, gap: 12, backgroundColor: colors.surface },
+  instructions: { padding: 16, borderRadius: 24, borderCurve: 'continuous', gap: 12, backgroundColor: colors.surface },
   instructionTitle: { fontFamily, fontSize: 18, lineHeight: 24, fontWeight: '700', color: colors.text },
   instructionText: { fontFamily, fontSize: 14, lineHeight: 22, color: colors.text },
   pressed: { opacity: 0.6 },

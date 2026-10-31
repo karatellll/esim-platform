@@ -1,15 +1,26 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { countryPhoto } from '../catalog/photos';
+import { tariffGigabytes } from '../home/recommendation';
+import { formatCatalogPrice } from '../catalog/prices';
 import { useState } from 'react';
-import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Modal, Platform, Share, useWindowDimensions } from 'react-native';
+import { ScrollView } from '../ui/ScrollView';
+import { Pressable, View } from '../ui/Surface';
+import { fonts, StyleSheet } from '../ui/design';
+import { Text } from '../ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CountryFlag } from '../components/CountryFlag';
+import { SkeletonBlock, SkeletonGroup } from '../components/Skeleton';
+import { TariffSkeleton } from '../components/SkeletonLayouts';
+import { useSkeletonGate } from '../hooks/useSkeletonGate';
 import { useCatalogTariffs } from '../hooks/useCatalogTariffs';
 import { recommendTariff } from '../home/recommendation';
 import type { RootStackParamList } from '../navigation/stack';
 import { getTariffHeading } from '../tariffs/countryTitle';
-import { durationKey, formatDataAmount, formatDuration, formatTariffPrice, getDefaultDuration, getDefaultTariff, getDurations, getTariffsForDuration } from '../tariffs/tariffs';
+import { durationKey, formatDataAmount, formatDuration, formatTariffPrice, getDefaultDuration, getDefaultTariff, getDurations, getTariffsForDuration, getTariffSavings } from '../tariffs/tariffs';
 import { colors } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CountryTariffs'>;
@@ -25,6 +36,7 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const catalog = useCatalogTariffs(route.params.country.id);
+  const skeletonGate = useSkeletonGate(catalog.state.status === 'loading');
   const [durationSelection, setDurationSelection] = useState<string | null>(null);
   const [tariffSelection, setTariffSelection] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
@@ -37,10 +49,12 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
   const selected = visibleTariffs.find((tariff) => tariff.id === tariffSelection)
     ?? visibleTariffs.find((tariff) => tariff.id === recommended?.id) ?? getDefaultTariff(visibleTariffs);
   const isGlobal = country.country_iso2?.toUpperCase() === 'XG';
+  const photoUrl = country.photo_url?.trim();
+  const turkeyHero = country.country_iso2?.toUpperCase() === 'TR' && !photoUrl;
+  const photo = photoUrl ? { uri: photoUrl } : countryPhoto(country.country_iso2);
   const heading = getTariffHeading(country);
   const countryName = heading.label;
   const stickerWidth = Math.min(Math.min(width, 600) - 48, Math.max(123, countryName.length * (isGlobal ? 17 : 15) + 22));
-  const packageWidth = (Math.min(width, 600) - 32) / 2;
   const topInset = Platform.OS === 'web' ? 48 : insets.top;
   const bottomPadding = Platform.OS === 'web' ? 42 : Math.max(insets.bottom, 12) + 8;
   const summary = selected ? `${country.display_name}\n${formatDataAmount(selected)} · ${formatDuration(selected.duration)}\n${formatTariffPrice(selected)}` : country.display_name;
@@ -61,6 +75,11 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
         contentContainerStyle={[styles.content, { paddingTop: topInset + 8, paddingBottom: selected ? bottomPadding + 92 : bottomPadding + 20 }]}
         contentInsetAdjustmentBehavior="never"
       >
+        {!isGlobal && (turkeyHero || photo) && <View pointerEvents="none" style={[styles.heroPhoto, turkeyHero && styles.turkeyBackground]}>
+          {turkeyHero ? <Image source={require('../../assets/tariffs/turkey-hero.png')} style={styles.designHeroImage} contentFit="contain" accessible={false} />
+            : <Image source={photo} style={StyleSheet.absoluteFill} contentFit="cover" accessible={false} />}
+          <LinearGradient colors={['rgba(20,20,22,0.6)', 'rgba(20,20,22,0.15)', 'rgba(20,20,22,0.5)', colors.background]} locations={[0, 0.3, 0.62, 1]} style={StyleSheet.absoluteFill} />
+        </View>}
         <View style={styles.navbar}>
           <Pressable onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Назад" testID="tariffs-back" style={({ pressed }) => [styles.navButton, pressed && styles.pressed]}>
             <Image source={assets.back} style={styles.navIcon} contentFit="contain" accessible={false} />
@@ -69,9 +88,10 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
             <Image source={assets.share} style={styles.navIcon} contentFit="contain" accessible={false} />
           </Pressable>
         </View>
-        <View style={styles.header}>
-          <CountryFlag key={`${country.id}-${country.image_url}`} country={country} size={52} />
-          <View style={styles.titleRow} accessibilityRole="header" accessibilityLabel={`${heading.prefix} ${countryName}`}>
+        {!isGlobal && <View style={styles.heroSpace} />}
+        <View style={[styles.header, !isGlobal && styles.photoHeader]}>
+          {isGlobal && <CountryFlag key={`${country.id}-${country.image_url}`} country={country} size={52} />}
+          <View style={[styles.titleRow, !isGlobal && styles.photoTitleRow]} accessibilityRole="header" accessibilityLabel={`${heading.prefix} ${countryName}`}>
             <Text style={styles.title}>{heading.prefix}</Text>
             <View style={[styles.stickerFrame, { width: stickerWidth }]}>
               <View style={[styles.sticker, { width: stickerWidth }]}>
@@ -80,12 +100,13 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
               </View>
             </View>
           </View>
-          <Text style={styles.subtitle}>Выберите срок и объём интернета</Text>
+          <Text style={[styles.subtitle, !isGlobal && styles.photoSubtitle]}>{country.network?.trim() || 'Выберите срок и объём интернета'}</Text>
         </View>
 
-        {catalog.state.status === 'loading' ? (
-          <View style={styles.status} testID="tariffs-loading"><ActivityIndicator color={colors.tariffAccent} /><Text style={styles.statusText}>Загружаем тарифы…</Text></View>
-        ) : catalog.state.status === 'error' ? (
+        {catalog.state.status === 'loading' ? skeletonGate.timedOut ? (
+          <View style={styles.status} testID="tariffs-loading-timeout"><Text style={styles.statusText}>Загрузка тарифов заняла слишком много времени.</Text><Pressable style={styles.retry} onPress={() => { skeletonGate.restart(); catalog.reload(); }} accessibilityRole="button"><Text style={styles.buttonText}>Повторить</Text></Pressable></View>
+        ) : skeletonGate.visible ? <TariffSkeleton /> : null
+        : catalog.state.status === 'error' ? (
           <View style={styles.status} testID="tariffs-error" accessibilityLiveRegion="polite">
             <Text style={styles.statusText}>{catalog.state.message}</Text>
             <Pressable style={styles.retry} onPress={catalog.reload} accessibilityRole="button" testID="tariffs-retry"><Text style={styles.buttonText}>Повторить</Text></Pressable>
@@ -108,13 +129,14 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
             <View style={styles.grid} testID="tariff-packages">
               {visibleTariffs.map((tariff) => {
                 const active = tariff.id === selected?.id;
-                return <Pressable key={tariff.id} testID={`tariff-${tariff.id}`} accessibilityRole="button" accessibilityLabel={`${formatDataAmount(tariff)}, ${formatDuration(tariff.duration)}, ${formatTariffPrice(tariff)}`} accessibilityState={{ selected: active }} aria-pressed={active} onPress={() => setTariffSelection(tariff.id)} style={({ pressed }) => [styles.package, { width: packageWidth }, active && styles.packageActive, pressed && styles.pressed]}>
-                  <Text style={[styles.packageTitle, active && { paddingRight: 36 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>{formatDataAmount(tariff)}</Text>
-                  {active && <Image source={assets.eyesCard} style={styles.eyesCard} contentFit="contain" accessible={false} />}
-                  <View style={styles.packageBottom}>
-                    <Text style={styles.packagePrice} numberOfLines={1} adjustsFontSizeToFit>{formatTariffPrice(tariff)}</Text>
-                    {tariff.is_profitable_badge && <View style={styles.badge}><Text style={styles.badgeText}>Выгодно</Text></View>}
-                  </View>
+                const savings = getTariffSavings(tariff, visibleTariffs);
+                return <Pressable key={tariff.id} testID={`tariff-${tariff.id}`} accessibilityRole="button" accessibilityLabel={`${formatDataAmount(tariff)}, ${formatDuration(tariff.duration)}, ${formatTariffPrice(tariff)}`} accessibilityState={{ selected: active }} aria-pressed={active} onPress={() => setTariffSelection(tariff.id)} style={({ pressed }) => [styles.package, active && styles.packageActive, pressed && styles.pressed]}>
+                  <View style={{ flex: 1, gap: 2 }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={styles.packageTitle}>{formatDataAmount(tariff)}</Text>
+                    {active && <Image source={assets.eyesCard} style={{ width: 28.8, height: 18 }} contentFit="contain" />}
+                  </View><Text style={styles.unitPrice}>{tariff.is_unlimited ? 'Без ограничений по трафику' : tariffGigabytes(tariff) ? `${formatCatalogPrice({ amount: tariff.price_amount_minor / tariffGigabytes(tariff)!, currency: tariff.price_currency }).replace(/^от /, '')} за ГБ` : formatDuration(tariff.duration)}</Text></View>
+                  {(savings !== null || tariff.is_profitable_badge) && <View style={styles.badge} accessibilityLabel={savings !== null ? `На ${savings}% дешевле за ГБ, чем минимальный пакет` : 'Выгодный пакет'}><Text style={styles.badgeText}>{savings !== null ? `−${savings}%` : 'Выгодно'}</Text></View>}
+                  <Text style={styles.packagePrice}>{formatTariffPrice(tariff)}</Text>
                 </Pressable>;
               })}
             </View>
@@ -132,6 +154,7 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
         </View>
         <Pressable onPress={() => navigation.navigate('Checkout', { country, tariff: selected })} accessibilityRole="button" testID="tariff-buy" style={({ pressed }) => [styles.buy, pressed && styles.pressed]}><Text style={styles.buttonText}>Купить</Text></Pressable>
       </View>}
+      {catalog.state.status === 'loading' && skeletonGate.visible && !skeletonGate.timedOut && <SkeletonGroup style={[styles.purchase, { paddingBottom: bottomPadding }]}><View style={{ flex: 1, gap: 8 }}><SkeletonBlock style={{ width: 72, height: 20 }} /><SkeletonBlock style={{ width: 98, height: 10 }} /></View><View style={[styles.buy, { opacity: 0.4 }]}><SkeletonBlock style={{ width: 56, height: 12 }} /></View></SkeletonGroup>}
       <Modal visible={notice !== null} transparent animationType="fade" onRequestClose={() => setNotice(null)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard} accessibilityViewIsModal>
@@ -145,16 +168,24 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
   );
 }
 
-const fontFamily = Platform.select({ ios: 'System', android: 'sans-serif', default: 'system-ui' });
-const displayFont = Platform.OS === 'web' ? 'Arial' : fontFamily;
+const fontFamily = fonts.text;
+const displayFont = fonts.display;
 const styles = StyleSheet.create({
+  unitPrice: { color: '#8C8C99', fontSize: 13, lineHeight: 16 },
   screen: { flex: 1, backgroundColor: colors.background },
+  heroPhoto: { position: 'absolute', top: 0, left: 0, right: 0, height: 400, overflow: 'hidden' },
+  turkeyBackground: { backgroundColor: '#E30A17' },
+  designHeroImage: { position: 'absolute', width: 690, height: 460, left: -40, top: -60 },
+  heroSpace: { height: 170 },
   scroll: { flex: 1 },
-  content: { width: '100%', maxWidth: 600, alignSelf: 'center', paddingHorizontal: 12, gap: 12 },
-  navbar: { paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  navButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.selectedTab, alignItems: 'center', justifyContent: 'center' },
+  content: { width: '100%', paddingHorizontal: 12, gap: 12 },
+  navbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  navButton: { width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous', backgroundColor: colors.selectedTab, alignItems: 'center', justifyContent: 'center' },
   navIcon: { width: 20, height: 20 },
   header: { alignItems: 'center', gap: 6, paddingBottom: 8 },
+  photoHeader: { alignItems: 'flex-start' },
+  photoTitleRow: { justifyContent: 'flex-start', alignItems: 'flex-start' },
+  photoSubtitle: { textAlign: 'left' },
   titleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', columnGap: 8, rowGap: 2, maxWidth: '100%' },
   title: { fontFamily: displayFont, fontSize: 28, lineHeight: 36, fontWeight: '900', letterSpacing: -0.56, color: colors.text },
   stickerFrame: { height: 44.206, alignItems: 'center', justifyContent: 'center' },
@@ -162,36 +193,36 @@ const styles = StyleSheet.create({
   stickerImage: { position: 'absolute', top: 0, width: 123, height: 41 },
   stickerText: { fontFamily: displayFont, fontSize: 28, lineHeight: 36, fontWeight: '900', letterSpacing: -0.56, color: colors.text, paddingHorizontal: 11, textAlign: 'center' },
   subtitle: { fontFamily, fontSize: 14, lineHeight: 20, letterSpacing: -0.056, color: colors.mutedText, textAlign: 'center' },
-  durations: { padding: 4, borderRadius: 16, backgroundColor: colors.surface, overflow: 'hidden' },
+  durations: { padding: 4, borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.surface, overflow: 'hidden' },
   durationContent: { flexGrow: 1 },
   duration: { flexGrow: 1, minWidth: 80, height: 40, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
   durationActive: { backgroundColor: colors.text },
   durationText: { fontFamily, fontSize: 14, lineHeight: 20, fontWeight: '600', color: 'rgba(255,255,255,0.6)', letterSpacing: -0.056 },
   durationTextActive: { color: colors.ink },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  package: { height: 100, borderRadius: 20, padding: 14, paddingTop: 12, paddingBottom: 8, backgroundColor: colors.surface, borderWidth: 2, borderColor: 'transparent', justifyContent: 'space-between', overflow: 'hidden' },
+  grid: { gap: 8 },
+  package: { minHeight: 74, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 20, borderCurve: 'continuous', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: colors.surface, borderWidth: 2, borderColor: 'transparent', justifyContent: 'space-between', overflow: 'hidden' },
   packageActive: { borderColor: colors.tariffAccent },
   packageTitle: { fontFamily: displayFont, fontSize: 22, lineHeight: 28, fontWeight: '900', letterSpacing: -0.44, color: colors.text },
   packageBottom: { flexDirection: 'row', gap: 4, alignItems: 'center', justifyContent: 'space-between' },
   packagePrice: { fontFamily, fontSize: 16, lineHeight: 22, fontWeight: '600', letterSpacing: -0.064, color: 'rgba(255,255,255,0.7)', flexShrink: 1 },
   eyesCard: { position: 'absolute', top: 16, right: 16, width: 28.8, height: 18 },
-  badge: { borderRadius: 8, backgroundColor: colors.lime, paddingHorizontal: 8, paddingVertical: 2, flexShrink: 0 },
+  badge: { borderRadius: 8, borderCurve: 'continuous', backgroundColor: colors.lime, paddingHorizontal: 8, paddingVertical: 2, flexShrink: 0 },
   badgeText: { fontFamily, fontSize: 12, lineHeight: 16, fontWeight: '700', color: colors.ink },
   hint: { flexDirection: 'row', gap: 8, alignItems: 'center', paddingHorizontal: 8 },
   eyesHint: { width: 25.6, height: 16 },
   hintText: { fontFamily, fontSize: 14, lineHeight: 20, color: 'rgba(255,255,255,0.6)', letterSpacing: -0.056, flex: 1 },
-  purchase: { position: 'absolute', bottom: 0, alignSelf: 'center', width: '100%', maxWidth: 600, paddingTop: 12, paddingLeft: 24, paddingRight: 12, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: colors.surface, flexDirection: 'row', gap: 12, alignItems: 'center' },
+  purchase: { position: 'absolute', bottom: 0, alignSelf: 'stretch', width: '100%', paddingTop: 12, paddingLeft: 24, paddingRight: 12, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: colors.surface, flexDirection: 'row', gap: 12, alignItems: 'center' },
   total: { flex: 1, minWidth: 0 },
   totalPrice: { fontFamily: displayFont, fontSize: 24, lineHeight: 30, fontWeight: '900', letterSpacing: -0.48, color: colors.text },
   totalDetails: { fontFamily, fontSize: 14, lineHeight: 20, color: colors.mutedText, letterSpacing: -0.056 },
-  buy: { width: 170, maxWidth: '52%', height: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: colors.tariffAccent },
+  buy: { width: 170, maxWidth: '52%', height: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.tariffAccent },
   buttonText: { fontFamily, fontSize: 16, lineHeight: 22, fontWeight: '600', color: colors.text },
   status: { paddingVertical: 32, alignItems: 'center', gap: 16 },
   statusText: { fontFamily, fontSize: 14, lineHeight: 20, color: colors.mutedText, textAlign: 'center' },
-  retry: { borderRadius: 16, backgroundColor: colors.tariffAccent, paddingHorizontal: 24, paddingVertical: 14, alignItems: 'center' },
+  retry: { borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.tariffAccent, paddingHorizontal: 24, paddingVertical: 14, alignItems: 'center' },
   pressed: { opacity: 0.8 },
   modalBackdrop: { flex: 1, padding: 24, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
-  modalCard: { width: '100%', maxWidth: 420, padding: 24, gap: 20, borderRadius: 24, backgroundColor: colors.surface },
+  modalCard: { width: '100%', maxWidth: 420, padding: 24, gap: 20, borderRadius: 24, borderCurve: 'continuous', backgroundColor: colors.surface },
   modalTitle: { fontFamily: displayFont, fontSize: 22, lineHeight: 28, fontWeight: '900', color: colors.text },
   modalText: { fontFamily, fontSize: 16, lineHeight: 24, color: colors.text },
 });

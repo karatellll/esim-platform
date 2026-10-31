@@ -9,6 +9,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.responses import JSONResponse
 
+from app.coverage import router as coverage_router
+from app.support import router as support_router
 from app.auth import AuthError, AuthService, router as auth_router
 from app.catalog import CatalogService
 from app.checkout import router as checkout_router
@@ -48,6 +50,8 @@ def create_app(
     application = FastAPI(title="ТурСим API", version="0.1.0", lifespan=lifespan)
     application.state.auth = AuthService(settings, mailer=auth_mailer, clock=auth_clock)
     application.include_router(auth_router)
+    application.include_router(support_router)
+    application.include_router(coverage_router)
     application.include_router(checkout_router)
     application.add_middleware(
         CORSMiddleware,
@@ -70,9 +74,9 @@ def create_app(
     async def validation_error_handler(request: Request, error: RequestValidationError):
         if request.url.path.startswith(("/api/checkout/", "/api/orders")):
             return JSONResponse(status_code=422, content={"error": {"code": "invalid_checkout_request", "message": "Проверьте данные заказа."}}, headers={"Cache-Control": "no-store"})
-        if request.url.path.startswith("/api/auth/"):
+        if request.url.path.startswith(("/api/auth/", "/api/me/profile", "/api/me/coverage-subscriptions", "/api/support/")):
             # Default validation details echo request input, including verification codes.
-            return JSONResponse(status_code=422, content={"error": {"code": "invalid_auth_request", "message": "Проверьте адрес почты и введённые данные."}}, headers={"Cache-Control": "no-store"})
+            return JSONResponse(status_code=422, content={"error": {"code": "invalid_auth_request", "message": "Проверьте введённые данные."}}, headers={"Cache-Control": "no-store"})
         return await request_validation_exception_handler(request, error)
 
     @application.exception_handler(CatalogError)

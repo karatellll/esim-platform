@@ -1,6 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, TextInput } from 'react-native';
+import { ActivityIndicator } from 'react-native';
+import { Pressable } from '../ui/Surface';
+import { Text, TextInput } from '../ui/Text';
 
 import { AuthApiError, sendEmailCode } from '../api/auth';
 import { AuthLayout, authStyles } from '../components/AuthLayout';

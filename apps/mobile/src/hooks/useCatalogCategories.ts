@@ -1,6 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
+import { AppState } from 'react-native';
 import type { CatalogCategory } from '../../../../packages/shared/contracts/catalog';
 import { getCatalogCategories } from '../api/catalog';
 
@@ -15,7 +16,7 @@ export function useCatalogCategories() {
 
   useFocusEffect(useCallback(() => {
     const controller = new AbortController();
-    setState({ status: 'loading' });
+    setState((previous) => previous.status === 'ready' ? previous : { status: 'loading' });
 
     getCatalogCategories(controller.signal)
       .then((catalog) => {
@@ -23,9 +24,8 @@ export function useCatalogCategories() {
       })
       .catch((error: unknown) => {
         if (!controller.signal.aborted) {
-          setState({
-            status: 'error',
-            message: error instanceof Error ? error.message : 'Не удалось загрузить направления.',
+          setState((previous) => previous.status === 'ready' ? previous : {
+            status: 'error', message: error instanceof Error ? error.message : 'Не удалось загрузить направления.',
           });
         }
       });
@@ -34,5 +34,11 @@ export function useCatalogCategories() {
   }, [attempt]));
 
   const reload = useCallback(() => setAttempt((value) => value + 1), []);
+  useEffect(() => {
+    if (state.status !== 'error') return;
+    const subscription = AppState.addEventListener('change', next => { if (next === 'active') reload(); });
+    if (typeof window !== 'undefined') window.addEventListener('online', reload);
+    return () => { subscription.remove(); if (typeof window !== 'undefined') window.removeEventListener('online', reload); };
+  }, [state.status, reload]);
   return { state, reload };
 }

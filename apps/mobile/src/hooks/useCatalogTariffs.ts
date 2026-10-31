@@ -14,14 +14,14 @@ export function useCatalogTariffs(esimId: string | null) {
   const [attempt, setAttempt] = useState(0);
   useFocusEffect(useCallback(() => {
     const controller = new AbortController();
-    setState({ status: 'loading' });
+    setState((previous) => previous.status === 'ready' && previous.data.esim.id === esimId ? previous : { status: 'loading' });
     if (!esimId) return () => controller.abort();
     getCatalogTariffs(esimId, controller.signal)
       .then((response) => {
         if (!controller.signal.aborted) setState({ status: 'ready', data: response.data });
       })
       .catch((error: unknown) => {
-        if (!controller.signal.aborted) setState({ status: 'error', message: error instanceof Error ? error.message : 'Не удалось загрузить тарифы.' });
+        if (!controller.signal.aborted) setState((previous) => previous.status === 'ready' ? previous : { status: 'error', message: error instanceof Error ? error.message : 'Не удалось загрузить тарифы.' });
       });
     return () => controller.abort();
   }, [esimId, attempt]));

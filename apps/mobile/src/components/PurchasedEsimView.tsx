@@ -1,5 +1,9 @@
 import { Image } from 'expo-image';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform } from 'react-native';
+import { ScrollView } from '../ui/ScrollView';
+import { Pressable, View } from '../ui/Surface';
+import { fonts, StyleSheet } from '../ui/design';
+import { Text } from '../ui/Text';
 import type { OrderData } from '../../../../packages/shared/contracts/checkout';
 import { orderCountry, orderDataLabel, orderPrice } from '../orders/display';
 import { installationState, trafficDisplay } from '../orders/installation';
@@ -18,7 +22,7 @@ const assets = {
   wifi: require('../../assets/installation/wifi.svg'),
 };
 
-function AllowanceRing({ ratio, amount, caption }: { ratio: number; amount: string; caption: string }) {
+export function AllowanceRing({ ratio, amount, caption }: { ratio: number; amount: string; caption: string }) {
   return <View style={styles.ring} accessible accessibilityLabel={`${amount} ${caption}`}>
     <Image source={assets.track} style={styles.circle} contentFit="contain" accessible={false} />
     <View style={[styles.half, { left: 75 }]}>
@@ -85,18 +89,18 @@ export function PurchasedEsimView({ order, topInset, bottomInset, onInstall, onL
   </View>;
 }
 
-const fontFamily = Platform.select({ ios: 'System', android: 'sans-serif', default: 'system-ui' });
+const fontFamily = fonts.text;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { width: '100%', maxWidth: 375, alignSelf: 'center', paddingHorizontal: 12, gap: 16 },
+  content: { width: '100%', paddingHorizontal: 12, gap: 16 },
   headingSlot: { height: 95, width: '100%', overflow: 'visible' },
-  heading: { width: 351, height: 95 },
-  card: { padding: 18, borderRadius: 28, backgroundColor: colors.surface, gap: 18 },
+  heading: { width: '100%', height: 95 },
+  card: { padding: 18, borderRadius: 28, borderCurve: 'continuous', backgroundColor: colors.surface, gap: 18 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   countryCopy: { flex: 1, minWidth: 0 },
   country: { fontFamily, fontSize: 22, lineHeight: 28, letterSpacing: -0.44, fontWeight: '900', color: colors.text },
   plan: { fontFamily, fontSize: 13, lineHeight: 19, letterSpacing: -0.052, color: colors.mutedText },
-  badge: { maxWidth: 132, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 8, paddingRight: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: colors.selectedTab },
+  badge: { maxWidth: 132, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 8, paddingRight: 10, paddingVertical: 4, borderRadius: 12, borderCurve: 'continuous', backgroundColor: colors.selectedTab },
   statusDot: { width: 7, height: 7 },
   badgeText: { flexShrink: 1, fontFamily, fontSize: 12, lineHeight: 16, letterSpacing: -0.048, fontWeight: '700', color: colors.text },
   allowanceRow: { flexDirection: 'row', alignItems: 'center', gap: 18 },
@@ -112,14 +116,14 @@ const styles = StyleSheet.create({
   legendDot: { width: 8, height: 8 },
   legendLabel: { fontFamily, fontSize: 13, lineHeight: 19, letterSpacing: -0.052, color: 'rgba(255,255,255,0.55)' },
   legendValue: { fontFamily, fontSize: 16, lineHeight: 22, letterSpacing: -0.064, fontWeight: '600', color: colors.text },
-  notice: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 12, paddingRight: 14, paddingVertical: 12, borderRadius: 16, backgroundColor: colors.surface, minHeight: 64 },
-  coinCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.lime, alignItems: 'center', justifyContent: 'center' },
+  notice: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 12, paddingRight: 14, paddingVertical: 12, borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.surface, minHeight: 64 },
+  coinCircle: { width: 32, height: 32, borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.lime, alignItems: 'center', justifyContent: 'center' },
   coins: { width: 18, height: 18 },
   wifi: { width: 22, height: 22 },
   payment: { flex: 1, fontFamily, fontSize: 14, lineHeight: 20, letterSpacing: -0.056, fontWeight: '600', color: colors.text },
   hint: { flex: 1, fontFamily, fontSize: 14, lineHeight: 20, letterSpacing: -0.056, color: 'rgba(255,255,255,0.7)' },
-  footer: { position: 'absolute', bottom: 0, width: '100%', maxWidth: 375, alignSelf: 'center', paddingTop: 12, paddingHorizontal: 12, gap: 10, backgroundColor: colors.background },
-  button: { height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  footer: { position: 'absolute', bottom: 0, width: '100%', paddingTop: 12, paddingHorizontal: 12, gap: 10, backgroundColor: colors.background },
+  button: { height: 56, borderRadius: 16, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   install: { backgroundColor: colors.lime },
   later: { backgroundColor: colors.selectedTab },
   installText: { fontFamily, fontSize: 16, lineHeight: 22, letterSpacing: -0.064, fontWeight: '600', color: colors.ink },

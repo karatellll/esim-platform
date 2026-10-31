@@ -1,6 +1,8 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { View } from '../ui/Surface';
+import { StyleSheet } from '../ui/design';
+import { Text } from '../ui/Text';
 
 import type { CatalogEsim } from '../../../../packages/shared/contracts/catalog';
 import { colors } from '../theme';

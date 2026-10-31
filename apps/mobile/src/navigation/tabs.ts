@@ -2,7 +2,7 @@ import type { ImageSource } from 'expo-image';
 
 export type RootTabParamList = {
   Search: undefined;
-  Countries: undefined;
+  Countries: { section?: 'countries' | 'regions' | 'world' } | undefined;
   MyEsims: undefined;
   Savings: undefined;
   Profile: undefined;
@@ -23,35 +23,35 @@ export const tabs: readonly TabDefinition[] = [
     name: 'Search',
     label: 'Поиск',
     testId: 'search',
-    icon: require('../../assets/tab-bar/search.svg'),
-    activeIcon: require('../../assets/tab-bar/search-active.svg'),
+    icon: require('../../assets/mvp/5dbbc.svg'),
+    activeIcon: require('../../assets/mvp/9706f.svg'),
   },
   {
     name: 'Countries',
     label: 'Страны',
     testId: 'countries',
-    icon: require('../../assets/tab-bar/countries.svg'),
+    icon: require('../../assets/mvp/ced92.svg'),
     activeIcon: require('../../assets/tab-bar/countries-active.svg'),
   },
   {
     name: 'MyEsims',
     label: 'Мои eSIM',
     testId: 'esims',
-    icon: require('../../assets/tab-bar/esims.svg'),
-    activeIcon: require('../../assets/tab-bar/esims-active.svg'),
+    icon: require('../../assets/mvp/96aa4.svg'),
+    activeIcon: require('../../assets/mvp/3c6eb.svg'),
   },
   {
     name: 'Savings',
     label: 'Копилка',
     testId: 'savings',
-    icon: require('../../assets/tab-bar/savings.svg'),
-    activeIcon: require('../../assets/tab-bar/savings-active.svg'),
+    icon: require('../../assets/mvp/56de7.svg'),
+    activeIcon: require('../../assets/mvp/af298.svg'),
   },
   {
     name: 'Profile',
     label: 'Профиль',
     testId: 'profile',
-    icon: require('../../assets/tab-bar/profile.svg'),
-    activeIcon: require('../../assets/tab-bar/profile-active.svg'),
+    icon: require('../../assets/mvp/d26d0.svg'),
+    activeIcon: require('../../assets/mvp/17f46.svg'),
   },
 ];

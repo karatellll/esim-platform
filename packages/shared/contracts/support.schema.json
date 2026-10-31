@@ -1,0 +1,51 @@
+{
+  "$defs": {
+    "SupportMessage": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "status": {
+          "default": "saved",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "created_at"
+      ],
+      "title": "SupportMessage",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "messages": {
+      "items": {
+        "$ref": "#/$defs/SupportMessage"
+      },
+      "title": "Messages",
+      "type": "array"
+    },
+    "operator_connected": {
+      "default": false,
+      "title": "Operator Connected",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "messages"
+  ],
+  "title": "SupportResponse",
+  "type": "object"
+}

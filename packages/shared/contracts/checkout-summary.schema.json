@@ -36,6 +36,30 @@
           "default": null,
           "title": "Image Url"
         },
+        "network": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Network"
+        },
+        "photo_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Photo Url"
+        },
         "min_price_amount": {
           "anyOf": [
             {
@@ -120,6 +144,33 @@
       "title": "CatalogTariff",
       "type": "object"
     },
+    "CheckoutPromotion": {
+      "properties": {
+        "code": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "subtotal_amount": {
+          "minimum": 0,
+          "title": "Subtotal Amount",
+          "type": "number"
+        },
+        "discount_amount": {
+          "exclusiveMinimum": 0,
+          "title": "Discount Amount",
+          "type": "number"
+        }
+      },
+      "required": [
+        "code",
+        "subtotal_amount",
+        "discount_amount"
+      ],
+      "title": "CheckoutPromotion",
+      "type": "object"
+    },
     "CheckoutSummary": {
       "properties": {
         "country": {
@@ -188,6 +239,17 @@
           ],
           "default": null,
           "title": "Existing Order Id"
+        },
+        "promotion": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckoutPromotion"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [

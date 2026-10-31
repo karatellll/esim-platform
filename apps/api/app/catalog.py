@@ -16,6 +16,8 @@ class SDKCatalogItem(BaseModel):
     country: str | None = None
     name: str = Field(min_length=1)
     image_url: str | None = None
+    network: str | None = None
+    photo_url: str | None = None
     min_price_amount: float | None = Field(default=None, ge=0, strict=True, allow_inf_nan=False)
     min_price_currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
 
@@ -101,6 +103,8 @@ class CatalogService:
                             country_iso2=item.country,
                             display_name=item.name,
                             image_url=item.image_url,
+                            network=item.network,
+                            photo_url=item.photo_url,
                             min_price_amount=item.min_price_amount,
                             min_price_currency=item.min_price_currency,
                         )
@@ -130,6 +134,8 @@ class CatalogService:
                 country_iso2=data.esim.country,
                 display_name=data.esim.name,
                 image_url=data.esim.image_url,
+                network=data.esim.network,
+                photo_url=data.esim.photo_url,
                 min_price_amount=data.esim.min_price_amount,
                 min_price_currency=data.esim.min_price_currency,
             ),

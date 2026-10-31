@@ -327,10 +327,40 @@ def test_summary_rejects_mismatched_country_and_injected_price(checkout_env):
 
 def test_promo_and_untrusted_origin_are_rejected_without_purchase(checkout_env):
     client, provider, *_ = checkout_env
-    assert client.post('/api/checkout/summary', json=selection(promo_code='TEST50')).status_code == 422
+    promo = client.post('/api/checkout/summary', json=selection(promo_code='TEST50'))
+    assert promo.status_code == 422
+    assert promo.json()['error']['code'] == 'promo_unavailable'
     assert client.post('/api/checkout/summary', json=selection(), headers={'Origin': 'https://untrusted.example'}).status_code == 403
     assert client.post('/api/orders', json={'quote_id': str(uuid4())}).status_code == 401
     assert provider.requests == []
+
+
+def test_failed_promo_does_not_change_or_block_the_quote(checkout_env):
+    client, provider, *_ = checkout_env
+    headers, _ = login(checkout_env)
+    before = quote(client, headers)
+    response = client.post('/api/checkout/summary', json=selection(promo_code='SUMMER'), headers=headers)
+    assert response.status_code == 422
+    after = quote(client, headers)
+    assert after['amount'] == before['amount']
+    assert after['promotion'] is before['promotion'] is None
+    assert create(client, headers, after['quote_id']).status_code == 201
+
+
+def test_promotion_summary_requires_a_quote_and_a_matching_total(checkout_env):
+    from pydantic import ValidationError
+    from app.order_models import CheckoutSummary
+    client, *_ = checkout_env
+    headers, _ = login(checkout_env)
+    data = quote(client, headers)
+    subtotal = data['amount']
+    promoted = {**data, 'amount': subtotal - 1, 'promotion': {
+        'code': 'TEST', 'subtotal_amount': subtotal, 'discount_amount': 1,
+    }}
+    assert CheckoutSummary.model_validate(promoted).amount == subtotal - 1
+    for change in [{'amount': subtotal}, {'quote_id': None}, {'ordering_available': False}, {'price_source': 'catalog'}]:
+        with pytest.raises(ValidationError):
+            CheckoutSummary.model_validate({**promoted, **change})
 
 
 def test_reopening_pending_checkout_resumes_same_order(checkout_env):

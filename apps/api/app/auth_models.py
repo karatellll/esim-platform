@@ -59,6 +59,8 @@ class RefreshRequest(BaseModel):
 class AuthUser(BaseModel):
     id: UUID
     email: str
+    display_name: str = ""
+    avatar: str | None = None
     email_verified: bool = True
     created_at: datetime
 
@@ -83,3 +85,33 @@ class AuthErrorDetail(BaseModel):
 
 class AuthErrorResponse(BaseModel):
     error: AuthErrorDetail
+
+
+class ProfileUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    display_name: str = Field(min_length=1, max_length=80)
+    avatar: str | None = Field(default=None, max_length=300000)
+
+    @field_validator("display_name")
+    @classmethod
+    def clean_name(cls, value):
+        value = value.strip()
+        if not value or any(ord(c) < 32 for c in value):
+            raise ValueError("Invalid name")
+        return value
+
+    @field_validator("avatar")
+    @classmethod
+    def valid_avatar(cls, value):
+        if value is None:
+            return value
+        import base64
+        if not value.startswith("data:image/jpeg;base64,"):
+            raise ValueError("Only JPEG avatars are supported")
+        try:
+            data = base64.b64decode(value.split(",", 1)[1], validate=True)
+        except Exception as error:
+            raise ValueError("Invalid image") from error
+        if not data.startswith(b"\xff\xd8\xff") or len(data) > 200000:
+            raise ValueError("Invalid image")
+        return value

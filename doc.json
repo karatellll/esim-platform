@@ -1,0 +1,5028 @@
+{
+    "schemes": [],
+    "swagger": "2.0",
+    "info": {
+        "description": "Multi-tenant eSIM SDK + admin API. Three surfaces: SDK (/v1/sdk/*),\nWebhooks (/v1/webhooks/*), Admin (/v1/admin/*), Partner (/v1/partner/*).\nUUIDs encoded as JSON strings; monetary amounts as integer minor units paired with ISO-4217 codes.",
+        "title": "eSIM API",
+        "termsOfService": "https://example.com/terms",
+        "contact": {
+            "name": "eSIM API support",
+            "email": "support@example.com"
+        },
+        "license": {
+            "name": "Proprietary",
+            "url": "https://example.com/license"
+        },
+        "version": "1.0.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/v1/admin/goods-orders/{id}/confirm-payment": {
+            "post": {
+                "description": "Синтетический payments.captured через тот же путь, что и вебхук: платёж captured, заказ provisioning, выпуск у G-Engine за деньги кошелька. Разрешено в pending_payment и в failed (сессия истекла/упала), если покупатель не отменял заказ. Подарок заново занимает ключ «уже отправляется»; при конфликте 409 gift_in_progress и заказ остаётся неоплаченным. Пишет goods_order_audit confirm_payment.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-goods-orders"
+                ],
+                "summary": "Подтвердить оплату заказа товаров",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "orders.id (uuid)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant id (обязателен для super_admin)",
+                        "name": "tenant_id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Необязательный комментарий оператора (до 1000 символов)",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/admin.goodsConfirmPaymentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/admin.goodsOrderAdminDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "validation_error / invalid_body / invalid_id",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "order_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "409": {
+                        "description": "already_paid / order_cancelled / order_refunded / order_closed / gift_in_progress / action_not_allowed",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/admin/goods-widget-items": {
+            "get": {
+                "description": "Все вкладки виджета «Пополнение сервисов» тенанта (и снятые с публикации) в порядке sort.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-goods-widget"
+                ],
+                "summary": "Вкладки виджета пополнения",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant id (обязателен для super_admin)",
+                        "name": "tenant_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/admin.goodsWidgetItemDTO"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "goods_disabled",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "product_id — товар тенанта (форма вкладки берётся из его карточки); label до 24, title до 40, action_label до 16 символов; icon_url — http(s), загрузка через /v1/admin/uploads/image.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-goods-widget"
+                ],
+                "summary": "Создать вкладку виджета пополнения",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant id (обязателен для super_admin)",
+                        "name": "tenant_id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Вкладка",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/admin.goodsWidgetItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/admin.goodsWidgetItemDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "validation_error / invalid_body",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "product_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/admin/goods-widget-items/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-goods-widget"
+                ],
+                "summary": "Вкладка виджета пополнения",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "goods_widget_items.id (uuid)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant id (обязателен для super_admin)",
+                        "name": "tenant_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/admin.goodsWidgetItemDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "widget_item_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-goods-widget"
+                ],
+                "summary": "Удалить вкладку виджета пополнения",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "goods_widget_items.id (uuid)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant id (обязателен для super_admin)",
+                        "name": "tenant_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\\\"id\\\": \\\"…\\\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "widget_item_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-goods-widget"
+                ],
+                "summary": "Изменить вкладку виджета пополнения",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "goods_widget_items.id (uuid)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant id (обязателен для super_admin)",
+                        "name": "tenant_id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Изменяемые поля",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/admin.goodsWidgetItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/admin.goodsWidgetItemDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "validation_error / invalid_body / invalid_id",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "widget_item_not_found / product_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/admin/provider-plans/{id}/issue": {
+            "post": {
+                "description": "Прямой вызов провайдера: реальный платный eSIM, без заказа/платежа, без сохранения. Каждый вызов — новый eSIM.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin-provider-plans"
+                ],
+                "summary": "Выпустить eSIM по тарифу провайдера без оплаты",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "provider_plans.id (uuid)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant id (обязателен для super_admin)",
+                        "name": "tenant_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/admin.issuedEsimDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/partner/catalog": {
+            "get": {
+                "security": [
+                    {
+                        "PartnerToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "summary": "List catalog eSIMs (partner)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ListEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/partner/catalog/categories": {
+            "get": {
+                "security": [
+                    {
+                        "PartnerToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "summary": "List catalog categories (partner)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ListEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/partner/catalog/{esim_id}/tariffs": {
+            "get": {
+                "security": [
+                    {
+                        "PartnerToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "summary": "List catalog tariffs (partner)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "eSIM id",
+                        "name": "esim_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ListEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/partner/client-tokens": {
+            "post": {
+                "security": [
+                    {
+                        "PartnerToken": []
+                    }
+                ],
+                "description": "Issues a short-lived RS256 client_token bound to the partner's external_user_id. Idempotent via Idempotency-Key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "summary": "Issue SDK client token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Required idempotency token",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "External user id and optional TTL override",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/partner.issueClientTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/partner.issueClientTokenEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "validation_error (external_user_id пустой/слишком длинный, ttl_seconds вне [300, 604800]) | missing_idempotency_key | invalid_idempotency_key",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "missing_bearer_token | invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "409": {
+                        "description": "request_in_progress",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "422": {
+                        "description": "idempotency_key_reused",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/partner/client-tokens/{jti}/revoke": {
+            "post": {
+                "security": [
+                    {
+                        "PartnerToken": []
+                    }
+                ],
+                "description": "Marks the client token JTI revoked so subsequent SDK requests carrying it are rejected.",
+                "tags": [
+                    "Partner"
+                ],
+                "summary": "Revoke SDK client token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Required idempotency token",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "JWT id of the client token to revoke",
+                        "name": "jti",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "validation_error (пустой jti) | missing_idempotency_key",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "missing_bearer_token | invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "not_found — jti отсутствует в текущем тенанте",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "409": {
+                        "description": "request_in_progress",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "422": {
+                        "description": "idempotency_key_reused",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/partner/esims": {
+            "post": {
+                "security": [
+                    {
+                        "PartnerToken": []
+                    }
+                ],
+                "description": "Buys an eSIM for the partner's customer with no acquiring on our side (partner-postpay tenants only). Async: returns a non-terminal snapshot; poll GET /v1/partner/esims/{id} for delivery. Idempotency-Key required.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "summary": "Issue an eSIM (server-to-server)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Required idempotency token",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Customer reference and tariff (storefront_plan_id)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/partner.issueEsimRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/partner.issueEsimEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "validation_error | missing_idempotency_key",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "missing_bearer_token | invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "403": {
+                        "description": "tenant_suspended",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "not_found (non-postpay tenant) | plan_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "409": {
+                        "description": "request_in_progress | idempotency_conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "422": {
+                        "description": "plan_unavailable | idempotency_key_reused",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/partner/esims/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "PartnerToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "summary": "Get issued eSIM detail + usage (partner)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Issuance/order id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/partner.issuedEsimDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "not_found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/partner/goods-events": {
+            "get": {
+                "security": [
+                    {
+                        "PartnerToken": []
+                    }
+                ],
+                "description": "goods_order.delivered events oldest first, after the opaque cursor `after` (exclusive). At-least-once: dedupe by event_id and persist meta.next_cursor after processing a page. Contains activation codes — never log the body; responses are Cache-Control: no-store. external_user_id is empty for anonymized users (skip the e-mail). codes_unavailable=true means the sealed codes could not be decrypted: codes is empty, do not e-mail, escalate to an operator; the cursor still advances.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "summary": "Delivered goods orders feed",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cursor from the previous page's meta.next_cursor",
+                        "name": "after",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "1..200 (default 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/partner.goodsEventsEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_cursor | invalid_limit",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "missing_bearer_token | invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/partner/goods/orders": {
+            "get": {
+                "security": [
+                    {
+                        "PartnerToken": []
+                    }
+                ],
+                "description": "Digital-goods orders of the partner's external user, newest first, with cursor pagination. An unknown or anonymized user yields an empty list.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "summary": "List partner user's goods orders",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner-side user identifier",
+                        "name": "external_user_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default 20, max 50)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Opaque pagination cursor",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/partner.listGoodsOrdersEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "validation_error | invalid_cursor",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "missing_bearer_token | invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/partner/orders": {
+            "get": {
+                "security": [
+                    {
+                        "PartnerToken": []
+                    }
+                ],
+                "description": "Returns orders for the partner's external user with cursor pagination.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "summary": "List partner user's orders",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Partner-side user identifier",
+                        "name": "external_user_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Opaque pagination cursor",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/partner.listOrdersEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "validation_error — отсутствует/пустой external_user_id, некорректный limit",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "missing_bearer_token | invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/partner/users": {
+            "delete": {
+                "security": [
+                    {
+                        "PartnerToken": []
+                    }
+                ],
+                "description": "Anonymizes the partner-side user and revokes any outstanding client tokens. Idempotent.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Partner"
+                ],
+                "summary": "Anonymize partner user (GDPR)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Required idempotency token",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "External user id to anonymize",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/partner.anonymizeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "validation_error (пустой external_user_id, невалидный JSON) | missing_idempotency_key",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "missing_bearer_token | invalid_token",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "409": {
+                        "description": "request_in_progress",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "422": {
+                        "description": "idempotency_key_reused",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/public/esims": {
+            "get": {
+                "security": [
+                    {
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Same payload as GET /v1/sdk/esims, authenticated with the publishable key alone. Serves the catalogue before the user signs in, when no client_token exists yet.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public Catalog"
+                ],
+                "summary": "List eSIM groups (public, no sign-in)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Case-insensitive word-prefix filter on the eSIM display name",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.listGroupsEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "missing_publishable_key | invalid_publishable_key",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "503": {
+                        "description": "internal_error (auth backend unavailable)",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/public/esims/{id}/tariffs": {
+            "get": {
+                "security": [
+                    {
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Same payload as GET /v1/sdk/esims/{id}/tariffs, authenticated with the publishable key alone.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public Catalog"
+                ],
+                "summary": "List tariffs for an eSIM (public, no sign-in)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "eSIM UUID or country slug (turtsiya)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.listTariffsEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_esim_id",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "missing_publishable_key | invalid_publishable_key",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "esim_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "503": {
+                        "description": "internal_error (auth backend unavailable)",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/public/goods/home": {
+            "get": {
+                "security": [
+                    {
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Tiles and section banners of the «Сервисы» home screen. Only entries that lead to something visible are returned (a tenant with goods turned off gets only its eSIM entries); an eSIM entry has target.type = esim and no id. A section tile may carry target.search_query: open that section with it as the search parameter of GET /v1/public/goods/sections/{id}/products.\n\nWeb cabinet additions (old apps ignore them): widget — the «Пополнение сервисов» tabs (form from GET /v1/public/goods/products/{product_id}); popular — the «Популярное» carousel, up to 20 cards shaped like the lists; sections[].filters — the section's chips {label, query}, a chip being its products list with search=query. All are always arrays, empty when goods are off.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public Goods"
+                ],
+                "summary": "Goods home screen",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Card forms the app renders, comma-separated (account_amount,account_choice,choice,edition_region); absent = the first three",
+                        "name": "forms",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.goodsHomeEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "missing_publishable_key | invalid_publishable_key",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/public/goods/price": {
+            "post": {
+                "security": [
+                    {
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Server-side price (roubles) for account_amount variants (Steam, Stars). amount is an integer in the variant's own units; valid iff min ≤ amount ≤ max and (amount − min) % step == 0 when step is set, against the variant's amount when the card gave it one, else form.amount. Recomputed on every call; the order endpoint re-checks it.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public Goods"
+                ],
+                "summary": "Price a goods variant for an amount",
+                "parameters": [
+                    {
+                        "description": "Variant and amount in the variant's own units",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sdk.goodsPriceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.goodsPriceEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_body | invalid_variant_id",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "403": {
+                        "description": "goods_disabled — the tenant sells no goods",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "422": {
+                        "description": "amount_out_of_range (error.meta: min, max, step? — the variant's effective limits) | out_of_stock | unavailable | region_unavailable (gift variants: priced per region on the card)",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/public/goods/products": {
+            "get": {
+                "security": [
+                    {
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Same card list as a section, across every published section, with the same optional sort.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public Goods"
+                ],
+                "summary": "Search goods across sections",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Case-insensitive substring over title, badge, description",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "popular",
+                            "price_asc",
+                            "price_desc"
+                        ],
+                        "type": "string",
+                        "description": "popular | price_asc | price_desc; absent = the curated order",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Opaque cursor from meta.next_cursor",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size 1..50 (default 20)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Card forms the app renders, comma-separated (account_amount,account_choice,choice,edition_region); absent = the first three",
+                        "name": "forms",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.goodsCardsEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_cursor | invalid_limit | invalid_sort",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "403": {
+                        "description": "goods_disabled — the tenant sells no goods",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/public/goods/products/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Product with its visible variants. account_amount variants carry no price (use POST /v1/public/goods/price); low_stock marks shop codes with few units left. An account_amount variant may carry its own amount {presets, min, max, step?, unit_label?} (e.g. one currency of a Steam RUB/KZT/USD switch): when present it replaces form.amount's presets and limits for that variant; absent = form.amount applies. section {id, title} names the product's section (breadcrumbs); delivery_eta and delivery_note are optional texts (null when unset).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public Goods"
+                ],
+                "summary": "Goods product card",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product UUID or slug",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Card forms the app renders, comma-separated (account_amount,account_choice,choice,edition_region); absent = the first three",
+                        "name": "forms",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.goodsProductEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_product_id",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "403": {
+                        "description": "goods_disabled — the tenant sells no goods",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "product_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/public/goods/sections/{id}/products": {
+            "get": {
+                "security": [
+                    {
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Visible products of one published section, ordered as curated. price_from is the cheapest visible variant (for account_amount: each variant priced at its own effective amount_min), roubles; has_price_range tells the app to prefix «от».\n\nsort (optional): popular — most orders in the last 30 days first; price_asc / price_desc — by price_from at the current rates; ties keep the curated order. Without sort the order is the curated one, as before. meta.total counts the whole list; a cursor belongs to its sort.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Public Goods"
+                ],
+                "summary": "Products of a goods section",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Section UUID or slug",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Case-insensitive substring over title, badge, description",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "popular",
+                            "price_asc",
+                            "price_desc"
+                        ],
+                        "type": "string",
+                        "description": "popular | price_asc | price_desc; absent = the curated order",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Opaque cursor from meta.next_cursor",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size 1..50 (default 20)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Card forms the app renders, comma-separated (account_amount,account_choice,choice,edition_region); absent = the first three",
+                        "name": "forms",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.goodsCardsEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_section_id | invalid_cursor | invalid_limit | invalid_sort",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "403": {
+                        "description": "goods_disabled — the tenant sells no goods",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "section_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/sdk/devices": {
+            "post": {
+                "security": [
+                    {
+                        "ClientToken": [],
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Binds the device's FCM token to the signed-in user. A token that was registered by another account moves to the caller.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SDK Devices"
+                ],
+                "summary": "Register a push device",
+                "parameters": [
+                    {
+                        "description": "FCM token and platform",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sdk.registerDeviceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "registered"
+                    },
+                    "400": {
+                        "description": "invalid_body",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "SDK auth failure",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "422": {
+                        "description": "fcm_token_invalid | platform_invalid",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "429": {
+                        "description": "rate_limited",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/sdk/devices/{token}": {
+            "delete": {
+                "security": [
+                    {
+                        "ClientToken": [],
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Removes the caller's device by FCM token. Idempotent: an unknown token is not an error.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SDK Devices"
+                ],
+                "summary": "Unregister a push device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "FCM token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "removed or not found"
+                    },
+                    "401": {
+                        "description": "SDK auth failure",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/sdk/esims": {
+            "get": {
+                "security": [
+                    {
+                        "ClientToken": [],
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Returns the storefront catalog grouped by section. Optional substring search by country/name.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SDK Catalog"
+                ],
+                "summary": "List eSIM groups",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Case-insensitive substring filter",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.listGroupsEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "missing_publishable_key | invalid_publishable_key | missing_bearer_token | token_expired | token_revoked | invalid_token | token_tenant_mismatch",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/sdk/esims/{id}/tariffs": {
+            "get": {
+                "security": [
+                    {
+                        "ClientToken": [],
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Returns available tariffs for a given eSIM card and the eSIM ref.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SDK Catalog"
+                ],
+                "summary": "List tariffs for an eSIM",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "eSIM UUID or country slug (turtsiya)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.listTariffsEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_esim_id",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "SDK auth failure (см. /v1/sdk/esims)",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "esim_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/sdk/goods/orders": {
+            "get": {
+                "security": [
+                    {
+                        "ClientToken": [],
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "The caller's goods orders newest first, without codes. Merge with GET /v1/sdk/orders by created_at for «Мои заказы».",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SDK Goods"
+                ],
+                "summary": "List my goods orders",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Opaque cursor from meta.next_cursor",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size 1..100 (default 20)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.goodsOrdersEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_cursor | invalid_limit",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ClientToken": [],
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Validates and prices the purchase server-side (spec §5.1), checks the login with the supplier for top-ups, then opens the payment session. Open payment.url to pay.\n\nEvery response — including 409 price_changed and 422 errors — is cached under the Idempotency-Key; after fixing the input send a NEW key.\n\nreturn_url (optional): where the PSP sends the payer after paying or failing — an absolute https URL of at most 512 characters under an operator-allowed prefix, at most one {order_id} (replaced by the order id). Absent: the storefront's own result pages.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SDK Goods"
+                ],
+                "summary": "Create goods order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Required idempotency token",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Variant, account (top-ups; Steam profile or invite link for gifts), amount (account_amount), region (edition_region), price the user saw",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sdk.goodsOrderCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.goodsOrderCreateEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_body | invalid_variant_id | validation_error (expected_price outside (0, 1e9] roubles) | invalid_return_url | missing_idempotency_key | invalid_idempotency_key",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "402": {
+                        "description": "payment_declined — order saved, id in error.detail",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "403": {
+                        "description": "goods_disabled — the tenant sells no goods",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "409": {
+                        "description": "price_changed (error.meta.price, roubles) | gift_in_progress | request_in_progress",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "422": {
+                        "description": "invalid_account | invalid_amount | out_of_stock | unavailable | region_unavailable (error.meta.regions_changed) | amount_out_of_range (error.meta: min,max,step? — the variant's effective limits) | idempotency_conflict | idempotency_key_reused",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "503": {
+                        "description": "temporarily_unavailable | payments_not_configured",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/sdk/goods/orders/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "ClientToken": [],
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Poll this after payment. fulfillment.codes appears only here, only for the order's owner, once delivered; never cache codes on disk.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SDK Goods"
+                ],
+                "summary": "Get my goods order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Order UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.goodsOrderEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_id",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "order_not_found (also for another user's order)",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/sdk/goods/orders/{id}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "ClientToken": [],
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "«Отменить заказ» in the waiting-for-payment sheet. Allowed only while can_cancel is true. Only while state = pending_payment; an already cancelled or expired order is returned as is. If the payment page is still paid afterwards, the order is fulfilled normally.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SDK Goods"
+                ],
+                "summary": "Cancel my unpaid goods order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Order UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.goodsOrderEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_id",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "order_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "409": {
+                        "description": "already_paid",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/sdk/orders": {
+            "get": {
+                "security": [
+                    {
+                        "ClientToken": [],
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Returns the authenticated user's orders newest-first with cursor pagination.\n\nКаждая запись — это сокращённая проекция заказа без `payment` и `provision`. Значения `state` те же, что у `GET /v1/sdk/orders/{id}`: `pending_payment`, `paid`, `provisioning`, `delivered`, `failed`, `cancelled`. Поле `remaining` равно `null`, пока eSIM не выдан или usage-sync ещё не наблюдал трафик. `esim_status` — статус самой eSIM у провайдера (`issued` → `installed` → `activated` → `active` → `depleted` / `expired`), `null` до выдачи и до первого наблюдения; клиент должен терпеть неизвестные значения. Описание полной матрицы \"какие поля null при каком статусе\" см. в `GET /v1/sdk/orders/{id}`.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SDK Orders"
+                ],
+                "summary": "List orders",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Opaque pagination cursor",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default 50, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.listOrdersEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_limit | invalid_cursor",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "SDK auth failure",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ClientToken": [],
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Creates a single-item order for the given storefront plan and authorizes payment with the configured PSP.\n\nНа успехе возвращает заказ в стартовом `state == \"pending_payment\"` с `payment.state == \"pending\"`, заполненными `payment.url` и `payment.expires_at` — клиент SDK открывает `payment.url` для оплаты. Описание всех значений `state` и матрицу \"какие поля null при каком статусе\" см. в `GET /v1/sdk/orders/{id}`.\n\n`return_url` (необязательно) — куда касса вернёт покупателя и после оплаты, и после отказа: абсолютный https-адрес до 512 символов с разрешённым оператором префиксом; `{order_id}` (не больше одного) заменяется на id заказа. Без него — страницы витрины.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SDK Orders"
+                ],
+                "summary": "Create order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Required idempotency token; replay returns the cached response",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Storefront plan ids (exactly one)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sdk.createOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.orderEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_body | validation_error | too_many_ids | invalid_id | invalid_return_url | missing_idempotency_key | invalid_idempotency_key",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "SDK auth failure",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "402": {
+                        "description": "payment_declined — заказ сохранён, id в error.detail (order_id=\u003cuuid\u003e)",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "plan_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "409": {
+                        "description": "request_in_progress — параллельный запрос с тем же Idempotency-Key",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "422": {
+                        "description": "idempotency_conflict | idempotency_key_reused",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/sdk/orders/summary": {
+            "post": {
+                "security": [
+                    {
+                        "ClientToken": [],
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Computes price totals for a cart of storefront plan ids. v1 expects exactly one id.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SDK Orders"
+                ],
+                "summary": "Cart summary",
+                "parameters": [
+                    {
+                        "description": "Cart ids",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sdk.summaryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.summaryEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_body | invalid_id | invalid_ids_length",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "SDK auth failure",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "tariff_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "422": {
+                        "description": "currency_mismatch",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/sdk/orders/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "ClientToken": [],
+                        "PublishableKey": []
+                    }
+                ],
+                "description": "Returns the full order envelope including delivery state. Cross-user access returns 404 (not 403) to disguise existence.\n\n### Жизненный цикл `state` (поле `data.state`)\n\nСоответствует CHECK-инварианту таблицы `orders` (migrations/00007):\n* `pending_payment` — стартовое; ждём оплату от пользователя.\n* `paid` — PSP подтвердил оплату webhook'ом `payments.captured`.\n* `provisioning` — outbox-воркер пытается зарезервировать eSIM у провайдера (smcard).\n* `delivered` — eSIM выдан; в `provision` лежат `iccid`, `activation_code`, `smdp_address`, `matching_id`, `qr_code_url`.\n* `failed` — оплата отклонена/истекла, либо провижининг провалился окончательно (см. `payment.failure_code` / `provision.state`).\n* `cancelled` — заказ отменён админом или прошёл возврат (`payment.state == \"refunded\"`).\n\n### Какие поля заполнены / `null` на каком статусе\n\nОбозначения: `+` — поле всегда присутствует и не `null`; `-` — поле равно `null` либо отсутствует в JSON; `?` — может присутствовать, см. примечания ниже.\n\n| Поле                              | pending_payment | paid | provisioning | delivered | failed | cancelled |\n|-----------------------------------|:---------------:|:----:|:------------:|:---------:|:------:|:---------:|\n| `payment.state`                   | `pending` / `authorizing` | `captured` | `captured` | `captured` | `failed` | `captured` или `refunded` |\n| `payment.url`                     | + (при `payment.state == \"pending\"`) | - | - | - | - | - |\n| `payment.expires_at`              | + (вместе с `payment.url`) | - | - | - | - | - |\n| `payment.failure_code`            | - | - | - | - | + | - |\n| `provision`                       | `null` | `null` | ? (объект, `state` = `pending` / `requested`) | + (объект, `state == \"delivered\"`) | ? (если упало в провижининге — `state == \"failed\"`) | ? (если успели создать) |\n| `provision.iccid`                 | - | - | - | + | - | - |\n| `provision.activation_code`       | - | - | - | + | - | - |\n| `provision.smdp_address`          | - | - | - | ? (когда LPA-строка well-formed) | - | - |\n| `provision.matching_id`           | - | - | - | ? (когда LPA-строка well-formed) | - | - |\n| `provision.qr_code_url`           | - | - | - | ? (при сбое presign S3 — пусто, ответ всё равно 200) | - | - |\n| `provision.qr_code_url_expires`   | - | - | - | ? (вместе с `qr_code_url`) | - | - |\n| `remaining`                       | `null` | `null` | `null` | ? (`null` до первого usage-sync, далее объект) | `null` | `null` |\n| `esim_status`                     | `null` | `null` | `null` | ? (`issued` → `installed` → `activated` → `active` → `depleted` / `expired`; `null` до первого наблюдения) | `null` | ? |\n| `activated_at`, `expires_at`      | `null` | `null` | `null` | ? (после первой регистрации eSIM в сети) | `null` | ? |\n| `esim`, `tariff`, `items`         | + | + | + | + | + | + |\n| `id`, `order_number`, `total_*`, `created_at` | + | + | + | + | + | + |\n\nПримечания:\n* `failed` достижим двумя путями. (1) Из `pending_payment` после `payments.failed` / `payments.expired` — `payment.failure_code` заполнен (`card_declined`, `provider_error`, `provider_failed`, `expired`), `provision` равен `null`. (2) Из `provisioning` после окончательного отказа провайдера — `payment.state == \"captured\"` без `failure_code`, `provision.state == \"failed\"`.\n* `cancelled` достигается через админ-flow (`POST /v1/admin/orders/{id}/cancel`) или по webhook'у `payments.refunded`. Если переход случился после доставки eSIM, `provision` остаётся в JSON с прежним содержимым; `qr_code_url` всё равно пересоздаётся как 5-минутный presign на каждом запросе.\n* На `delivered` `qr_code_url` и/или `activation_code` могут оказаться пустыми, если расшифровка LPA или presign S3 транзитно упали — handler намеренно отвечает 200 с частичным телом, SDK должен опросить заказ ещё раз.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SDK Orders"
+                ],
+                "summary": "Get order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Order UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/sdk.orderEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid_order_id",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "401": {
+                        "description": "SDK auth failure",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "404": {
+                        "description": "order_not_found (включая случай, когда заказ принадлежит другому пользователю — намеренно отдаём 404, а не 403)",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    },
+                    "500": {
+                        "description": "internal_error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorEnvelope"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "admin.goodsConfirmPaymentRequest": {
+            "type": "object",
+            "properties": {
+                "note": {
+                    "type": "string"
+                }
+            }
+        },
+        "admin.goodsOrderAdminDTO": {
+            "type": "object",
+            "properties": {
+                "account": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "integer"
+                },
+                "amount_label": {
+                    "type": "string"
+                },
+                "attempts": {
+                    "type": "integer"
+                },
+                "busy": {
+                    "type": "boolean"
+                },
+                "codes_masked": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "delivered_at": {
+                    "type": "string"
+                },
+                "delivery": {
+                    "type": "string"
+                },
+                "fulfillment_state": {
+                    "type": "string"
+                },
+                "gengine_order_id": {
+                    "type": "integer"
+                },
+                "gengine_uuid": {
+                    "type": "string"
+                },
+                "gift_dedupe_held": {
+                    "type": "boolean"
+                },
+                "gift_refunded": {
+                    "description": "GiftRefunded: G-Engine refunded the gift order; Retry buys again.",
+                    "type": "boolean"
+                },
+                "gift_upstream_unknown": {
+                    "description": "GiftUpstreamUnknown: the purchase outcome is unknown (ambiguous create\nnot found, or G-Engine 404) — Retry / new link / new region need\nconfirmed_absent («проверил в кабинете G-Engine: заказа нет»).",
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "line": {
+                    "type": "string"
+                },
+                "next_attempt_at": {
+                    "type": "string"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "order_number": {
+                    "type": "integer"
+                },
+                "paid_to_supplier_at": {
+                    "type": "string"
+                },
+                "pay_attempted_at": {
+                    "type": "string"
+                },
+                "payment_state": {
+                    "type": "string"
+                },
+                "possibly_paid": {
+                    "type": "boolean"
+                },
+                "price_minor": {
+                    "type": "integer"
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "product_title": {
+                    "type": "string"
+                },
+                "quoted_cost_usd": {
+                    "type": "number"
+                },
+                "rate_market": {
+                    "type": "number"
+                },
+                "recreate_confirmed_at": {
+                    "type": "string"
+                },
+                "region": {
+                    "description": "Gifts (spec gifts §4.4); zero values for other lines.",
+                    "type": "string"
+                },
+                "region_name": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "supplier_cost_usd": {
+                    "type": "number"
+                },
+                "supplier_error": {
+                    "type": "string"
+                },
+                "supplier_ref": {
+                    "type": "string"
+                },
+                "supplier_status": {
+                    "type": "string"
+                },
+                "tenant_user_id": {
+                    "type": "string"
+                },
+                "total_amount_minor": {
+                    "type": "integer"
+                },
+                "variant_id": {
+                    "type": "string"
+                },
+                "variant_label": {
+                    "type": "string"
+                },
+                "view_state": {
+                    "type": "string"
+                }
+            }
+        },
+        "admin.goodsWidgetItemDTO": {
+            "type": "object",
+            "properties": {
+                "action_label": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "icon_url": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_published": {
+                    "type": "boolean"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "sort": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "admin.goodsWidgetItemRequest": {
+            "type": "object",
+            "properties": {
+                "action_label": {
+                    "type": "string"
+                },
+                "icon_url": {
+                    "type": "string"
+                },
+                "is_published": {
+                    "type": "boolean"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "sort": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "admin.issuedEsimDTO": {
+            "type": "object",
+            "properties": {
+                "data_total_mb": {
+                    "type": "integer"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "external_reference": {
+                    "type": "string"
+                },
+                "iccid": {
+                    "type": "string"
+                },
+                "ios_tap_link": {
+                    "type": "string"
+                },
+                "lpa_code": {
+                    "type": "string"
+                },
+                "qr_code_base64": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "transaction_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.ErrorBody": {
+            "type": "object",
+            "required": [
+                "code",
+                "status",
+                "title"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "plan_not_found"
+                },
+                "detail": {
+                    "type": "string",
+                    "example": "order_id=7c1f2a3b-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+                },
+                "instance": {
+                    "type": "string",
+                    "example": "/v1/sdk/orders"
+                },
+                "meta": {
+                    "description": "Meta carries machine-readable details for errors the client acts on\n(e.g. amount_out_of_range → {min, max}). Omitted for every other error.",
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 404
+                },
+                "title": {
+                    "type": "string",
+                    "example": "plan not found"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "about:blank"
+                }
+            }
+        },
+        "handlers.ErrorEnvelope": {
+            "type": "object",
+            "required": [
+                "error",
+                "request_id"
+            ],
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/handlers.ErrorBody"
+                },
+                "request_id": {
+                    "type": "string",
+                    "example": "req_2f4c1a90"
+                }
+            }
+        },
+        "handlers.ListEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "meta",
+                "request_id"
+            ],
+            "properties": {
+                "data": {},
+                "meta": {
+                    "$ref": "#/definitions/handlers.ListMeta"
+                },
+                "request_id": {
+                    "type": "string",
+                    "example": "req_2f4c1a90"
+                }
+            }
+        },
+        "handlers.ListMeta": {
+            "type": "object",
+            "required": [
+                "has_more"
+            ],
+            "properties": {
+                "has_more": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "next_cursor": {
+                    "type": "string",
+                    "example": "eyJpZCI6Ijdj..."
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 68
+                }
+            }
+        },
+        "partner.anonymizeRequest": {
+            "type": "object",
+            "required": [
+                "external_user_id"
+            ],
+            "properties": {
+                "external_user_id": {
+                    "type": "string",
+                    "example": "u_42"
+                }
+            }
+        },
+        "partner.costDTO": {
+            "type": "object",
+            "properties": {
+                "amount_minor": {
+                    "type": "integer",
+                    "example": 450
+                },
+                "currency": {
+                    "type": "string",
+                    "example": "USD"
+                }
+            }
+        },
+        "partner.durationAmountDTO": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "example": 7
+                },
+                "unit": {
+                    "type": "string",
+                    "enum": [
+                        "day"
+                    ],
+                    "example": "day"
+                }
+            }
+        },
+        "partner.esimSummaryDTO": {
+            "type": "object",
+            "properties": {
+                "country_iso2": {
+                    "type": "string",
+                    "example": "UZ"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "image": {
+                    "type": "string",
+                    "format": "uri"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Узбекистан"
+                }
+            }
+        },
+        "partner.goodsEventCodeDTO": {
+            "type": "object",
+            "required": [
+                "code"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "pin": {
+                    "type": "string"
+                }
+            }
+        },
+        "partner.goodsEventDTO": {
+            "type": "object",
+            "required": [
+                "codes",
+                "delivery",
+                "event_id",
+                "instruction_steps",
+                "occurred_at",
+                "order_id",
+                "order_number",
+                "product_title",
+                "tenant_user_id",
+                "type",
+                "variant_label"
+            ],
+            "properties": {
+                "account": {
+                    "description": "account: the login; steam_gift: the region name, never the recipient link",
+                    "type": "string"
+                },
+                "amount_label": {
+                    "type": "string"
+                },
+                "codes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/partner.goodsEventCodeDTO"
+                    }
+                },
+                "codes_unavailable": {
+                    "description": "codes could not be decrypted: do not e-mail, escalate to an operator",
+                    "type": "boolean"
+                },
+                "delivery": {
+                    "type": "string",
+                    "enum": [
+                        "code",
+                        "account",
+                        "steam_gift"
+                    ]
+                },
+                "event_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "external_user_id": {
+                    "description": "empty for anonymized users: skip the e-mail",
+                    "type": "string",
+                    "example": "vpn-77"
+                },
+                "instruction_steps": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "occurred_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "order_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "order_number": {
+                    "type": "integer"
+                },
+                "product_title": {
+                    "type": "string"
+                },
+                "tenant_user_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "goods_order.delivered"
+                },
+                "variant_label": {
+                    "type": "string"
+                }
+            }
+        },
+        "partner.goodsEventsEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "meta",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/partner.goodsEventDTO"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.ListMeta"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "partner.goodsOrderSummaryDTO": {
+            "type": "object",
+            "required": [
+                "created_at",
+                "id",
+                "order_number",
+                "state",
+                "title",
+                "total_amount_minor",
+                "total_currency"
+            ],
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-10-08T09:10:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "order_number": {
+                    "type": "integer",
+                    "example": 10000000001043
+                },
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "pending_payment",
+                        "paid",
+                        "provisioning",
+                        "delivered",
+                        "failed",
+                        "cancelled"
+                    ],
+                    "example": "delivered"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Steam — 1000 ₽"
+                },
+                "total_amount_minor": {
+                    "type": "integer",
+                    "example": 121000
+                },
+                "total_currency": {
+                    "type": "string",
+                    "example": "RUB"
+                }
+            }
+        },
+        "partner.issueClientTokenEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/partner.issueClientTokenResponse"
+                },
+                "request_id": {
+                    "type": "string",
+                    "example": "req_2f4c1a90"
+                }
+            }
+        },
+        "partner.issueClientTokenRequest": {
+            "type": "object",
+            "required": [
+                "external_user_id"
+            ],
+            "properties": {
+                "external_user_id": {
+                    "type": "string",
+                    "example": "u_42"
+                },
+                "ttl_seconds": {
+                    "description": "Pointer so we can distinguish \"absent\" from an explicit zero. Absent\n→ use service default; zero → service rejects with ErrTTLOutOfRange.",
+                    "type": "integer",
+                    "maximum": 604800,
+                    "minimum": 300,
+                    "example": 86400
+                }
+            }
+        },
+        "partner.issueClientTokenResponse": {
+            "type": "object",
+            "required": [
+                "expires_at",
+                "jti",
+                "token"
+            ],
+            "properties": {
+                "expires_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-05-03T15:00:00Z"
+                },
+                "jti": {
+                    "type": "string",
+                    "example": "9b3e1f0c4ad57e2f8aab12cd34ef5670"
+                },
+                "token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "partner.issueEsimEnvelope": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/partner.issueEsimResponse"
+                },
+                "request_id": {
+                    "type": "string",
+                    "example": "req_2f4c1a90"
+                }
+            }
+        },
+        "partner.issueEsimRequest": {
+            "type": "object",
+            "required": [
+                "external_user_id",
+                "storefront_plan_id"
+            ],
+            "properties": {
+                "external_user_id": {
+                    "type": "string",
+                    "example": "u_42"
+                },
+                "storefront_plan_id": {
+                    "type": "string",
+                    "example": "3f1c…"
+                }
+            }
+        },
+        "partner.issueEsimResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "example": "7c9e…"
+                },
+                "poll_url": {
+                    "type": "string",
+                    "example": "/v1/partner/esims/7c9e…"
+                },
+                "state": {
+                    "type": "string",
+                    "example": "processing"
+                }
+            }
+        },
+        "partner.issuedEsimDTO": {
+            "type": "object",
+            "properties": {
+                "activated_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "cost": {
+                    "$ref": "#/definitions/partner.costDTO"
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "esim": {
+                    "$ref": "#/definitions/partner.esimSummaryDTO"
+                },
+                "esim_status": {
+                    "description": "EsimStatus is the upstream eSIM lifecycle — what happened to the eSIM\nafter delivery, unlike Status (our issuance pipeline). Passed through\nverbatim from the provider; clients must tolerate unknown values.\nOmitted until observed. ActivatedAt/ExpiresAt appear once the eSIM\nfirst attaches to the destination network. Delivered-only.",
+                    "type": "string",
+                    "enum": [
+                        "issued",
+                        "installed",
+                        "activated",
+                        "active",
+                        "depleted",
+                        "expired"
+                    ],
+                    "example": "installed"
+                },
+                "expires_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "iccid": {
+                    "description": "delivered-only:",
+                    "type": "string"
+                },
+                "lpa_code": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "qr_code_object_key": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "processing",
+                        "delivered",
+                        "failed"
+                    ]
+                },
+                "tariff": {
+                    "$ref": "#/definitions/partner.tariffSummaryDTO"
+                },
+                "usage": {
+                    "$ref": "#/definitions/partner.usageDTO"
+                }
+            }
+        },
+        "partner.listGoodsOrdersEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "meta",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/partner.goodsOrderSummaryDTO"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.ListMeta"
+                },
+                "request_id": {
+                    "type": "string",
+                    "example": "req_2f4c1a90"
+                }
+            }
+        },
+        "partner.listOrdersEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "meta",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/partner.orderSummaryDTO"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.ListMeta"
+                },
+                "request_id": {
+                    "type": "string",
+                    "example": "req_2f4c1a90"
+                }
+            }
+        },
+        "partner.orderSummaryDTO": {
+            "type": "object",
+            "required": [
+                "created_at",
+                "id",
+                "order_number",
+                "state",
+                "title",
+                "total_amount_minor",
+                "total_currency"
+            ],
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-05-01T10:15:30Z"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "7c1f2a3b-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+                },
+                "order_number": {
+                    "type": "integer",
+                    "example": 10000000001042
+                },
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "pending_payment",
+                        "paid",
+                        "provisioning",
+                        "delivered",
+                        "failed",
+                        "cancelled"
+                    ],
+                    "example": "delivered"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Турция · 10 ГБ · 30 дней"
+                },
+                "total_amount_minor": {
+                    "type": "integer",
+                    "example": 99000
+                },
+                "total_currency": {
+                    "type": "string",
+                    "example": "RUB"
+                }
+            }
+        },
+        "partner.tariffSummaryDTO": {
+            "type": "object",
+            "properties": {
+                "data_amount": {
+                    "$ref": "#/definitions/partner.trafficAmountDTO"
+                },
+                "display_name": {
+                    "type": "string",
+                    "example": "1 ГБ / 7 дней"
+                },
+                "duration": {
+                    "$ref": "#/definitions/partner.durationAmountDTO"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                }
+            }
+        },
+        "partner.trafficAmountDTO": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "unit": {
+                    "type": "string",
+                    "enum": [
+                        "MB",
+                        "GB"
+                    ],
+                    "example": "GB"
+                }
+            }
+        },
+        "partner.usageDTO": {
+            "type": "object",
+            "properties": {
+                "data_remaining_mb": {
+                    "type": "integer"
+                },
+                "data_total_mb": {
+                    "type": "integer"
+                },
+                "data_used_mb": {
+                    "type": "integer"
+                },
+                "synced_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "sdk.OrderState": {
+            "type": "string",
+            "enum": [
+                "pending_payment",
+                "paid",
+                "provisioning",
+                "delivered",
+                "failed",
+                "cancelled"
+            ],
+            "x-enum-varnames": [
+                "OrderStatePendingPayment",
+                "OrderStatePaid",
+                "OrderStateProvisioning",
+                "OrderStateDelivered",
+                "OrderStateFailed",
+                "OrderStateCancelled"
+            ]
+        },
+        "sdk.checkoutItemDTO": {
+            "type": "object",
+            "required": [
+                "data_amount",
+                "display_name",
+                "duration",
+                "esim",
+                "id",
+                "is_profitable_badge",
+                "price_amount_minor",
+                "price_currency"
+            ],
+            "properties": {
+                "data_amount": {
+                    "$ref": "#/definitions/sdk.trafficAmountDTO"
+                },
+                "display_name": {
+                    "type": "string",
+                    "example": "1 ГБ / 7 дней"
+                },
+                "duration": {
+                    "$ref": "#/definitions/sdk.durationAmountDTO"
+                },
+                "esim": {
+                    "$ref": "#/definitions/sdk.esimRefDTO"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "0e2a8c1d-3b4f-5a6e-7c8d-9f0a1b2c3d4e"
+                },
+                "is_profitable_badge": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "price_amount_minor": {
+                    "type": "number",
+                    "format": "float",
+                    "example": 990
+                },
+                "price_currency": {
+                    "type": "string",
+                    "example": "RUB"
+                }
+            }
+        },
+        "sdk.createOrderRequest": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "description": "storefront_plan_id values, UUID strings",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "0e2a8c1d-3b4f-5a6e-7c8d-9f0a1b2c3d4e"
+                    ]
+                },
+                "return_url": {
+                    "description": "ReturnURL (optional): where the PSP sends the payer after paying or\nfailing — an absolute https URL of at most 512 characters under one of\nthe operator's allowed prefixes, with at most one {order_id} (replaced\nby the new order's id). Absent: the storefront's own result pages.",
+                    "type": "string",
+                    "example": "https://zloy-card.ru/services/orders/{order_id}"
+                }
+            }
+        },
+        "sdk.durationAmountDTO": {
+            "type": "object",
+            "required": [
+                "amount",
+                "unit"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "example": 30
+                },
+                "unit": {
+                    "type": "string",
+                    "enum": [
+                        "day"
+                    ],
+                    "example": "day"
+                }
+            }
+        },
+        "sdk.esimRefDTO": {
+            "type": "object",
+            "required": [
+                "country",
+                "id",
+                "image_url",
+                "name",
+                "phone_code",
+                "slug",
+                "updated_at"
+            ],
+            "properties": {
+                "country": {
+                    "type": "string",
+                    "example": "UZ"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "8a17d9b6-1c2e-4f3a-9d6e-3a4b5c6d7e8f"
+                },
+                "image_url": {
+                    "type": "string",
+                    "example": "https://cdn.example.com/uz.jpg"
+                },
+                "min_price_amount": {
+                    "description": "MinPriceAmount / MinPriceCurrency render the \"from N\" label on a\ncountry row: the cheapest tariff that is purchasable right now. Both\nare null together when the eSIM has none — clients treat that as \"no\nprice to show\", not as a free plan, so the fields are pointers and\ncarry no binding:\"required\".\n\nMinPriceAmount is in MAJOR units (4550 minor → 45.5), matching\ntariffDTO.PriceAmountMinor's existing — and misleadingly named —\nconvention. Keeping the two consistent matters more than fixing the\nname, which is already load-bearing for shipped clients.",
+                    "type": "number",
+                    "x-nullable": true,
+                    "example": 45.5
+                },
+                "min_price_currency": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "RUB"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Узбекистан"
+                },
+                "network": {
+                    "description": "Network is the operator and network line of the country (spec web\n§7.5); null when the admin has not set one. Old apps ignore it.",
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "Turkcell · 4G/5G"
+                },
+                "phone_code": {
+                    "type": "string",
+                    "example": "+998"
+                },
+                "photo_url": {
+                    "description": "PhotoURL is the scenic country photo (the catalogue card background and\nthe tariffs-screen header), as opposed to ImageURL's flag icon. It is a\npointer so an unset photo serializes as JSON null rather than \"\": the\nclient contract treats null/empty/absent alike, and null states \"no\nphoto\" without shipping a meaningless empty string to every client.",
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "https://cdn.example.com/tr-istanbul.jpg"
+                },
+                "seo_description": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "seo_title": {
+                    "description": "SEO overrides for the country page; null = not set (the web derives them).",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "slug": {
+                    "description": "Slug is the readable page address of the country (\"turtsiya\"); it is\naccepted wherever {id} is, and is what the web builds /services/esim/\u003cslug\u003e from.",
+                    "type": "string",
+                    "example": "turtsiya"
+                },
+                "updated_at": {
+                    "description": "UpdatedAt (RFC 3339, UTC) feeds sitemap lastmod.",
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-10-16T09:30:00Z"
+                }
+            }
+        },
+        "sdk.esimSummaryDTO": {
+            "type": "object",
+            "required": [
+                "id",
+                "image",
+                "name"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
+                },
+                "image": {
+                    "type": "string",
+                    "format": "uri",
+                    "example": "https://cdn.example.com/uz.jpg"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Узбекистан"
+                }
+            }
+        },
+        "sdk.goodsAccountFormDTO": {
+            "type": "object",
+            "required": [
+                "hint",
+                "label",
+                "placeholder"
+            ],
+            "properties": {
+                "hint": {
+                    "type": "string",
+                    "example": "Логин для входа, не имя профиля"
+                },
+                "label": {
+                    "type": "string",
+                    "example": "Логин Steam"
+                },
+                "pattern": {
+                    "description": "Pattern: validate the field with this regexp before ordering (always\npresent on edition_region; on other forms only when the operator set one).",
+                    "type": "string",
+                    "example": "^https://(s\\.team/p/...)$"
+                },
+                "placeholder": {
+                    "type": "string",
+                    "example": "login"
+                }
+            }
+        },
+        "sdk.goodsAmountFormDTO": {
+            "type": "object",
+            "required": [
+                "max",
+                "min",
+                "presets",
+                "unit_label"
+            ],
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "example": "Сумма пополнения"
+                },
+                "max": {
+                    "type": "integer",
+                    "example": 50000
+                },
+                "min": {
+                    "type": "integer",
+                    "example": 100
+                },
+                "presets": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "example": [
+                        500,
+                        1000,
+                        2000,
+                        5000
+                    ]
+                },
+                "step": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "unit_label": {
+                    "type": "string",
+                    "example": "₽"
+                }
+            }
+        },
+        "sdk.goodsCardDTO": {
+            "type": "object",
+            "required": [
+                "badge",
+                "has_price_range",
+                "id",
+                "image_url",
+                "price_from",
+                "short_description",
+                "slug",
+                "title",
+                "updated_at"
+            ],
+            "properties": {
+                "badge": {
+                    "type": "string",
+                    "example": "Пополнение · Steam"
+                },
+                "compare_at": {
+                    "type": "number",
+                    "example": 199
+                },
+                "has_price_range": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "image_url": {
+                    "type": "string",
+                    "example": "https://cdn.example.com/steam.png"
+                },
+                "price_from": {
+                    "type": "number",
+                    "example": 160
+                },
+                "short_description": {
+                    "type": "string",
+                    "example": "Пополнение кошелька по логину"
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "steam"
+                },
+                "sticker": {
+                    "description": "Sticker: «Хит» (hit) / «Новинка» (new) on the card; null = none. The\napp may ignore it (spec web §7.3).",
+                    "type": "string",
+                    "enum": [
+                        "hit",
+                        "new"
+                    ],
+                    "x-nullable": true,
+                    "example": "hit"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Steam"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-10-16T09:30:00Z"
+                }
+            }
+        },
+        "sdk.goodsCardsEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "meta",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.goodsCardDTO"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.ListMeta"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "sdk.goodsCodeDTO": {
+            "type": "object",
+            "required": [
+                "code"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "XXXX-XXXX-XXXX"
+                },
+                "pin": {
+                    "type": "string"
+                }
+            }
+        },
+        "sdk.goodsFormDTO": {
+            "type": "object",
+            "required": [
+                "type"
+            ],
+            "properties": {
+                "account": {
+                    "$ref": "#/definitions/sdk.goodsAccountFormDTO"
+                },
+                "amount": {
+                    "$ref": "#/definitions/sdk.goodsAmountFormDTO"
+                },
+                "region": {
+                    "$ref": "#/definitions/sdk.goodsRegionFormDTO"
+                },
+                "regions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.goodsRegionDTO"
+                    }
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Данные пополнения"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "account_amount",
+                        "account_choice",
+                        "choice",
+                        "edition_region"
+                    ]
+                },
+                "variants_label": {
+                    "type": "string",
+                    "example": "Срок подписки"
+                }
+            }
+        },
+        "sdk.goodsFulfillmentDTO": {
+            "type": "object",
+            "required": [
+                "instruction_steps",
+                "state"
+            ],
+            "properties": {
+                "codes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.goodsCodeDTO"
+                    }
+                },
+                "delivered_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "instruction_steps": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "note": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "waiting_payment",
+                        "processing",
+                        "delivered",
+                        "needs_attention",
+                        "closed"
+                    ]
+                }
+            }
+        },
+        "sdk.goodsGiftDTO": {
+            "type": "object",
+            "required": [
+                "region",
+                "region_name",
+                "status"
+            ],
+            "properties": {
+                "region": {
+                    "type": "string",
+                    "example": "ru"
+                },
+                "region_name": {
+                    "type": "string",
+                    "example": "Россия"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "processing",
+                        "sent",
+                        "delivered",
+                        "failed"
+                    ]
+                }
+            }
+        },
+        "sdk.goodsHomeDTO": {
+            "type": "object",
+            "required": [
+                "popular",
+                "sections",
+                "tiles",
+                "widget"
+            ],
+            "properties": {
+                "popular": {
+                    "description": "Popular: the «Популярное» carousel, up to 20 cards shaped like the\nlists. Always an array.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.goodsCardDTO"
+                    }
+                },
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.goodsHomeSectionDTO"
+                    }
+                },
+                "tiles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.goodsHomeTileDTO"
+                    }
+                },
+                "widget": {
+                    "description": "Widget: the «Пополнение сервисов» tabs; the tab's form is GET\n/v1/public/goods/products/{product_id}. Always an array; the app may\nignore it (spec web §7.2).",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.goodsWidgetItemDTO"
+                    }
+                }
+            }
+        },
+        "sdk.goodsHomeEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/sdk.goodsHomeDTO"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "sdk.goodsHomeSectionDTO": {
+            "type": "object",
+            "required": [
+                "banner_image_url",
+                "filters",
+                "id",
+                "slug",
+                "subtitle",
+                "title",
+                "updated_at"
+            ],
+            "properties": {
+                "banner_image_url": {
+                    "type": "string",
+                    "example": "https://cdn.example.com/banner.png"
+                },
+                "filters": {
+                    "description": "Filters: the section's chips; a chip is GET\n/v1/public/goods/sections/{id}/products?search=\u003cquery\u003e. Always an\narray (empty for most sections); the app may ignore it.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.goodsSectionFilterDTO"
+                    }
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "seo_description": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "seo_text": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "seo_title": {
+                    "description": "SEO overrides for the section page; null = not set (the web derives them).",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "igry"
+                },
+                "subtitle": {
+                    "type": "string",
+                    "example": "С низкой комиссией"
+                },
+                "target": {
+                    "description": "absent = opens this section's own list",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/sdk.goodsTargetDTO"
+                        }
+                    ]
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Пополнение игр и сервисов"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-10-16T09:30:00Z"
+                }
+            }
+        },
+        "sdk.goodsHomeTileDTO": {
+            "type": "object",
+            "required": [
+                "id",
+                "image_url",
+                "target",
+                "title"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "image_url": {
+                    "type": "string",
+                    "example": "https://cdn.example.com/steam.png"
+                },
+                "target": {
+                    "$ref": "#/definitions/sdk.goodsTargetDTO"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Пополнить Steam"
+                },
+                "web_image_url": {
+                    "description": "WebImageURL: the web cabinet's picture filling the whole tile; absent =\nnone (the web draws ImageURL on a pad). The app keeps ImageURL.",
+                    "type": "string",
+                    "example": "https://cdn.example.com/steam-web.jpg"
+                }
+            }
+        },
+        "sdk.goodsOrderCreateEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/sdk.goodsOrderCreateResponse"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "sdk.goodsOrderCreateRequest": {
+            "type": "object",
+            "required": [
+                "expected_price",
+                "variant_id"
+            ],
+            "properties": {
+                "account": {
+                    "type": "string",
+                    "example": "@durov"
+                },
+                "amount": {
+                    "type": "integer",
+                    "example": 1000
+                },
+                "expected_price": {
+                    "type": "number",
+                    "example": 1200
+                },
+                "region": {
+                    "description": "Region: the recipient's Steam account region (edition_region only;\nignored for every other product).",
+                    "type": "string",
+                    "example": "ru"
+                },
+                "return_url": {
+                    "description": "ReturnURL (optional): same rules as on POST /v1/sdk/orders.",
+                    "type": "string",
+                    "example": "https://zloy-card.ru/services/orders/{order_id}"
+                },
+                "variant_id": {
+                    "type": "string",
+                    "format": "uuid"
+                }
+            }
+        },
+        "sdk.goodsOrderCreateResponse": {
+            "type": "object",
+            "required": [
+                "order"
+            ],
+            "properties": {
+                "order": {
+                    "$ref": "#/definitions/sdk.goodsOrderDTO"
+                },
+                "payment": {
+                    "$ref": "#/definitions/sdk.paymentDTO"
+                }
+            }
+        },
+        "sdk.goodsOrderDTO": {
+            "type": "object",
+            "required": [
+                "can_cancel",
+                "created_at",
+                "delivery",
+                "fulfillment",
+                "id",
+                "order_number",
+                "product",
+                "state",
+                "total_amount",
+                "total_currency",
+                "variant_label"
+            ],
+            "properties": {
+                "account": {
+                    "description": "Account: the login, or for steam_gift the masked recipient link (the\nfull link is never returned).",
+                    "type": "string",
+                    "example": "@durov"
+                },
+                "amount_label": {
+                    "type": "string",
+                    "example": "1 000 ₽"
+                },
+                "can_cancel": {
+                    "description": "CanCancel: show «Отменить заказ» (POST /v1/sdk/goods/orders/{id}/cancel).\nAlways present; old builds ignore it, new builds read absent as false.",
+                    "type": "boolean",
+                    "example": true
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "delivery": {
+                    "description": "Delivery: code — codes in fulfillment.codes; account — credited to the\naccount, no code; steam_gift — sent as a Steam gift, no code (see gift).",
+                    "type": "string",
+                    "enum": [
+                        "code",
+                        "account",
+                        "steam_gift"
+                    ]
+                },
+                "fulfillment": {
+                    "$ref": "#/definitions/sdk.goodsFulfillmentDTO"
+                },
+                "gift": {
+                    "description": "Gift: Steam gift orders only.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/sdk.goodsGiftDTO"
+                        }
+                    ]
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "order_number": {
+                    "type": "integer",
+                    "example": 10000000000042
+                },
+                "payment": {
+                    "$ref": "#/definitions/sdk.paymentDTO"
+                },
+                "product": {
+                    "$ref": "#/definitions/sdk.goodsOrderProductDTO"
+                },
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "pending_payment",
+                        "paid",
+                        "provisioning",
+                        "delivered",
+                        "failed",
+                        "cancelled"
+                    ]
+                },
+                "total_amount": {
+                    "type": "number",
+                    "example": 1200
+                },
+                "total_currency": {
+                    "type": "string",
+                    "example": "RUB"
+                },
+                "variant_label": {
+                    "type": "string",
+                    "example": "12 месяцев"
+                }
+            }
+        },
+        "sdk.goodsOrderEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/sdk.goodsOrderDTO"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "sdk.goodsOrderProductDTO": {
+            "type": "object",
+            "required": [
+                "badge",
+                "id",
+                "image_url",
+                "title"
+            ],
+            "properties": {
+                "badge": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "sdk.goodsOrdersEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "meta",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.goodsOrderDTO"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.ListMeta"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "sdk.goodsPriceDTO": {
+            "type": "object",
+            "required": [
+                "face_value_label",
+                "price"
+            ],
+            "properties": {
+                "face_value_label": {
+                    "type": "string",
+                    "example": "1 000 ₽"
+                },
+                "price": {
+                    "type": "number",
+                    "example": 1200
+                }
+            }
+        },
+        "sdk.goodsPriceEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/sdk.goodsPriceDTO"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "sdk.goodsPriceRequest": {
+            "type": "object",
+            "required": [
+                "variant_id"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "example": 1000
+                },
+                "variant_id": {
+                    "type": "string",
+                    "format": "uuid"
+                }
+            }
+        },
+        "sdk.goodsProductDTO": {
+            "type": "object",
+            "required": [
+                "about",
+                "badge",
+                "delivery",
+                "form",
+                "id",
+                "image_url",
+                "instruction_steps",
+                "section",
+                "slug",
+                "title",
+                "updated_at",
+                "variants"
+            ],
+            "properties": {
+                "about": {
+                    "type": "string"
+                },
+                "badge": {
+                    "type": "string",
+                    "example": "Подарочная карта · Apple"
+                },
+                "delivery": {
+                    "type": "string",
+                    "enum": [
+                        "code",
+                        "account",
+                        "steam_gift"
+                    ]
+                },
+                "delivery_eta": {
+                    "description": "DeliveryETA («Через 5–15 минут») and DeliveryNote (a line about the\ndelivery); null = not set.",
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "Через 5–15 минут"
+                },
+                "delivery_note": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "Подписка включится сразу после оплаты"
+                },
+                "form": {
+                    "$ref": "#/definitions/sdk.goodsFormDTO"
+                },
+                "hero_image_url": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "instruction_steps": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "section": {
+                    "description": "Section: the product's section, for breadcrumbs (spec web §7.3).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/sdk.goodsSectionRefDTO"
+                        }
+                    ]
+                },
+                "seo_description": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "seo_text": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "seo_title": {
+                    "description": "SEO overrides for the product page; null = not set (the web derives them).",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "steam"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "App Store \u0026 iTunes, Турция"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-10-16T09:30:00Z"
+                },
+                "variants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.goodsVariantDTO"
+                    }
+                }
+            }
+        },
+        "sdk.goodsProductEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/sdk.goodsProductDTO"
+                },
+                "request_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "sdk.goodsRegionDTO": {
+            "type": "object",
+            "required": [
+                "code",
+                "flag",
+                "name"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "ge"
+                },
+                "countries": {
+                    "type": "string",
+                    "example": "Армения, Азербайджан, Беларусь"
+                },
+                "flag": {
+                    "description": "ISO-2, \"eu\" or \"un\"; the app draws flags",
+                    "type": "string",
+                    "example": "un"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "СНГ"
+                }
+            }
+        },
+        "sdk.goodsRegionFormDTO": {
+            "type": "object",
+            "required": [
+                "default",
+                "hint",
+                "label",
+                "warning"
+            ],
+            "properties": {
+                "default": {
+                    "type": "string",
+                    "example": "ru"
+                },
+                "hint": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string",
+                    "example": "Регион аккаунта получателя"
+                },
+                "warning": {
+                    "type": "string"
+                }
+            }
+        },
+        "sdk.goodsRegionPriceDTO": {
+            "type": "object",
+            "required": [
+                "price",
+                "region"
+            ],
+            "properties": {
+                "compare_at": {
+                    "type": "number"
+                },
+                "discount_ends_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "price": {
+                    "type": "number",
+                    "example": 5760
+                },
+                "region": {
+                    "type": "string",
+                    "example": "ru"
+                }
+            }
+        },
+        "sdk.goodsSectionFilterDTO": {
+            "type": "object",
+            "required": [
+                "label",
+                "query"
+            ],
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "example": "Steam"
+                },
+                "query": {
+                    "type": "string",
+                    "example": "steam"
+                }
+            }
+        },
+        "sdk.goodsSectionRefDTO": {
+            "type": "object",
+            "required": [
+                "id",
+                "slug",
+                "title"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "slug": {
+                    "type": "string",
+                    "example": "podpiski"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Подписки"
+                }
+            }
+        },
+        "sdk.goodsTargetDTO": {
+            "type": "object",
+            "required": [
+                "type"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "8a17d9b6-1c2e-4f3a-9d6e-3a4b5c6d7e8f"
+                },
+                "search_query": {
+                    "description": "SearchQuery (section tiles only): open the section with this text in\nits search box, i.e. pass it as ?search= to the section products list.",
+                    "type": "string",
+                    "example": "Apple"
+                },
+                "slug": {
+                    "description": "Slug: slug of the product / section the target leads to (absent for\nesim); usable in place of id in the product and section paths.",
+                    "type": "string",
+                    "example": "steam"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "product",
+                        "section",
+                        "esim"
+                    ],
+                    "example": "product"
+                }
+            }
+        },
+        "sdk.goodsVariantAmountDTO": {
+            "type": "object",
+            "required": [
+                "max",
+                "min",
+                "presets"
+            ],
+            "properties": {
+                "max": {
+                    "type": "integer",
+                    "example": 300000
+                },
+                "min": {
+                    "type": "integer",
+                    "example": 500
+                },
+                "presets": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "example": [
+                        1000,
+                        5000,
+                        10000
+                    ]
+                },
+                "step": {
+                    "type": "integer",
+                    "example": 100
+                },
+                "unit_label": {
+                    "type": "string",
+                    "example": "₸"
+                }
+            }
+        },
+        "sdk.goodsVariantDTO": {
+            "type": "object",
+            "required": [
+                "id",
+                "label",
+                "low_stock"
+            ],
+            "properties": {
+                "amount": {
+                    "description": "Amount (account_amount only): this variant's own limits; absent =\nuse form.amount.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/sdk.goodsVariantAmountDTO"
+                        }
+                    ]
+                },
+                "compare_at": {
+                    "type": "number"
+                },
+                "currency_code": {
+                    "type": "string",
+                    "example": "RUB"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "label": {
+                    "type": "string",
+                    "example": "300 TRY"
+                },
+                "low_stock": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "price": {
+                    "type": "number",
+                    "example": 640
+                },
+                "prices": {
+                    "description": "Prices (edition_region only, instead of price): the regions this\nedition is sold in.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.goodsRegionPriceDTO"
+                    }
+                },
+                "region": {
+                    "type": "string",
+                    "example": "TR"
+                },
+                "sublabel": {
+                    "type": "string",
+                    "example": "Только для турецких аккаунтов"
+                }
+            }
+        },
+        "sdk.goodsWidgetItemDTO": {
+            "type": "object",
+            "required": [
+                "action_label",
+                "icon_url",
+                "id",
+                "label",
+                "product_id",
+                "product_slug",
+                "title"
+            ],
+            "properties": {
+                "action_label": {
+                    "type": "string",
+                    "example": "Пополнить"
+                },
+                "icon_url": {
+                    "type": "string",
+                    "example": "https://cdn.example.com/steam-icon.png"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "label": {
+                    "type": "string",
+                    "example": "Steam"
+                },
+                "product_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "product_slug": {
+                    "type": "string",
+                    "example": "steam"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Пополнить Steam"
+                }
+            }
+        },
+        "sdk.groupDTO": {
+            "type": "object",
+            "required": [
+                "items",
+                "title"
+            ],
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.esimRefDTO"
+                    }
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Популярное"
+                }
+            }
+        },
+        "sdk.listGroupsEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "meta",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.groupDTO"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.ListMeta"
+                },
+                "request_id": {
+                    "type": "string",
+                    "example": "req_2f4c1a90"
+                }
+            }
+        },
+        "sdk.listOrderItemDTO": {
+            "type": "object",
+            "required": [
+                "created_at",
+                "esim",
+                "id",
+                "order_number",
+                "remaining",
+                "state",
+                "tariff",
+                "total_amount_minor",
+                "total_currency"
+            ],
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-05-01T10:15:30Z"
+                },
+                "esim": {
+                    "$ref": "#/definitions/sdk.esimSummaryDTO"
+                },
+                "esim_status": {
+                    "description": "null until observed",
+                    "type": "string",
+                    "enum": [
+                        "issued",
+                        "installed",
+                        "activated",
+                        "active",
+                        "depleted",
+                        "expired"
+                    ],
+                    "x-nullable": "true",
+                    "example": "installed"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "7c1f2a3b-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+                },
+                "order_number": {
+                    "type": "integer",
+                    "example": 10000000000042
+                },
+                "remaining": {
+                    "$ref": "#/definitions/sdk.trafficAmountDTO"
+                },
+                "state": {
+                    "$ref": "#/definitions/sdk.OrderState"
+                },
+                "tariff": {
+                    "$ref": "#/definitions/sdk.tariffSummaryDTO"
+                },
+                "total_amount_minor": {
+                    "type": "number",
+                    "format": "float",
+                    "example": 990
+                },
+                "total_currency": {
+                    "type": "string",
+                    "example": "RUB"
+                }
+            }
+        },
+        "sdk.listOrdersEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "meta",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.listOrderItemDTO"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/handlers.ListMeta"
+                },
+                "request_id": {
+                    "type": "string",
+                    "example": "req_2f4c1a90"
+                }
+            }
+        },
+        "sdk.listTariffsEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/sdk.listTariffsResponse"
+                },
+                "request_id": {
+                    "type": "string",
+                    "example": "req_2f4c1a90"
+                }
+            }
+        },
+        "sdk.listTariffsResponse": {
+            "type": "object",
+            "required": [
+                "esim",
+                "tariffs"
+            ],
+            "properties": {
+                "esim": {
+                    "$ref": "#/definitions/sdk.tariffsEsimDTO"
+                },
+                "tariffs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.tariffDTO"
+                    }
+                }
+            }
+        },
+        "sdk.orderEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/sdk.orderResponse"
+                },
+                "request_id": {
+                    "type": "string",
+                    "example": "req_2f4c1a90"
+                }
+            }
+        },
+        "sdk.orderItemDTO": {
+            "type": "object",
+            "required": [
+                "data_amount",
+                "display_name",
+                "duration",
+                "id",
+                "price_amount_minor",
+                "price_currency",
+                "storefront_plan_id"
+            ],
+            "properties": {
+                "data_amount": {
+                    "$ref": "#/definitions/sdk.trafficAmountDTO"
+                },
+                "display_name": {
+                    "type": "string",
+                    "example": "1 ГБ / 7 дней"
+                },
+                "duration": {
+                    "$ref": "#/definitions/sdk.durationAmountDTO"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "a4f2e1c0-8b9a-4d5e-6f7a-1b2c3d4e5f60"
+                },
+                "price_amount_minor": {
+                    "type": "number",
+                    "format": "float",
+                    "example": 990
+                },
+                "price_currency": {
+                    "type": "string",
+                    "example": "RUB"
+                },
+                "storefront_plan_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "0e2a8c1d-3b4f-5a6e-7c8d-9f0a1b2c3d4e"
+                }
+            }
+        },
+        "sdk.orderProvisionDTO": {
+            "type": "object",
+            "required": [
+                "activation_code",
+                "iccid",
+                "matching_id",
+                "qr_code_url",
+                "smdp_address",
+                "state"
+            ],
+            "properties": {
+                "activation_code": {
+                    "type": "string",
+                    "example": "LPA:1$rsp.example.com$abc123"
+                },
+                "iccid": {
+                    "type": "string",
+                    "example": "8901260123456789012"
+                },
+                "matching_id": {
+                    "type": "string",
+                    "example": "abc123"
+                },
+                "qr_code_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "example": "https://s3.example.com/qr/8901260123456789012.png"
+                },
+                "qr_code_url_expires": {
+                    "description": "RFC3339; null when qr_code_url is empty",
+                    "type": "string",
+                    "format": "date-time",
+                    "x-nullable": "true",
+                    "example": "2026-05-01T10:20:30Z"
+                },
+                "smdp_address": {
+                    "type": "string",
+                    "example": "rsp.example.com"
+                },
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "pending",
+                        "requested",
+                        "delivered",
+                        "failed"
+                    ],
+                    "example": "delivered"
+                }
+            }
+        },
+        "sdk.orderResponse": {
+            "type": "object",
+            "required": [
+                "created_at",
+                "esim",
+                "id",
+                "items",
+                "order_number",
+                "payment",
+                "remaining",
+                "state",
+                "tariff",
+                "total_amount_minor",
+                "total_currency"
+            ],
+            "properties": {
+                "activated_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "x-nullable": "true"
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-05-01T10:15:30Z"
+                },
+                "esim": {
+                    "$ref": "#/definitions/sdk.esimSummaryDTO"
+                },
+                "esim_status": {
+                    "description": "EsimStatus is the provider-side eSIM lifecycle — what happened to the\neSIM after delivery (installed on the device? attached to the network?),\nunlike State, which is our order pipeline. Passed through verbatim, so\nSDK clients must tolerate values outside the enum. ActivatedAt /\nExpiresAt fill in once the eSIM first attaches to the destination\nnetwork (duration_days counts from ActivatedAt).",
+                    "type": "string",
+                    "enum": [
+                        "issued",
+                        "installed",
+                        "activated",
+                        "active",
+                        "depleted",
+                        "expired"
+                    ],
+                    "x-nullable": "true",
+                    "example": "installed"
+                },
+                "expires_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "x-nullable": "true"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "7c1f2a3b-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.orderItemDTO"
+                    }
+                },
+                "order_number": {
+                    "type": "integer",
+                    "example": 10000000000042
+                },
+                "payment": {
+                    "$ref": "#/definitions/sdk.paymentDTO"
+                },
+                "provision": {
+                    "description": "null until worker has run",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/sdk.orderProvisionDTO"
+                        }
+                    ],
+                    "x-nullable": "true"
+                },
+                "remaining": {
+                    "$ref": "#/definitions/sdk.trafficAmountDTO"
+                },
+                "state": {
+                    "$ref": "#/definitions/sdk.OrderState"
+                },
+                "tariff": {
+                    "$ref": "#/definitions/sdk.tariffSummaryDTO"
+                },
+                "total_amount_minor": {
+                    "type": "number",
+                    "format": "float",
+                    "example": 990
+                },
+                "total_currency": {
+                    "type": "string",
+                    "example": "RUB"
+                }
+            }
+        },
+        "sdk.paymentDTO": {
+            "type": "object",
+            "required": [
+                "amount_minor",
+                "currency",
+                "state"
+            ],
+            "properties": {
+                "amount_minor": {
+                    "type": "number",
+                    "format": "float",
+                    "example": 990
+                },
+                "currency": {
+                    "type": "string",
+                    "example": "RUB"
+                },
+                "expires_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "x-nullable": "true",
+                    "example": "2026-05-02T10:30:30Z"
+                },
+                "failure_code": {
+                    "type": "string",
+                    "x-nullable": "true",
+                    "example": "card_declined"
+                },
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "authorizing",
+                        "pending",
+                        "authorized",
+                        "captured",
+                        "failed",
+                        "refunded"
+                    ],
+                    "example": "pending"
+                },
+                "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "x-nullable": "true",
+                    "example": "https://payform.aurapay.tech/3ed6f489-e8fe-4695-8846-9e6f0dbc3b25"
+                }
+            }
+        },
+        "sdk.registerDeviceRequest": {
+            "type": "object",
+            "required": [
+                "fcm_token",
+                "platform"
+            ],
+            "properties": {
+                "fcm_token": {
+                    "type": "string",
+                    "example": "fcm-registration-token"
+                },
+                "platform": {
+                    "type": "string",
+                    "enum": [
+                        "ios",
+                        "android"
+                    ],
+                    "example": "ios"
+                }
+            }
+        },
+        "sdk.summaryEnvelope": {
+            "type": "object",
+            "required": [
+                "data",
+                "request_id"
+            ],
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/sdk.summaryResponse"
+                },
+                "request_id": {
+                    "type": "string",
+                    "example": "req_2f4c1a90"
+                }
+            }
+        },
+        "sdk.summaryRequest": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "0e2a8c1d-3b4f-5a6e-7c8d-9f0a1b2c3d4e"
+                    ]
+                }
+            }
+        },
+        "sdk.summaryResponse": {
+            "type": "object",
+            "required": [
+                "items",
+                "total_amount_minor",
+                "total_currency"
+            ],
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/sdk.checkoutItemDTO"
+                    }
+                },
+                "total_amount_minor": {
+                    "type": "number",
+                    "format": "float",
+                    "example": 990
+                },
+                "total_currency": {
+                    "type": "string",
+                    "example": "RUB"
+                }
+            }
+        },
+        "sdk.tariffDTO": {
+            "type": "object",
+            "required": [
+                "data_amount",
+                "display_name",
+                "duration",
+                "id",
+                "is_profitable_badge",
+                "price_amount_minor",
+                "price_currency"
+            ],
+            "properties": {
+                "data_amount": {
+                    "$ref": "#/definitions/sdk.trafficAmountDTO"
+                },
+                "display_name": {
+                    "type": "string",
+                    "example": "1 ГБ / 7 дней"
+                },
+                "duration": {
+                    "$ref": "#/definitions/sdk.durationAmountDTO"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "0e2a8c1d-3b4f-5a6e-7c8d-9f0a1b2c3d4e"
+                },
+                "is_profitable_badge": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "price_amount_minor": {
+                    "type": "number",
+                    "format": "float",
+                    "example": 990
+                },
+                "price_currency": {
+                    "type": "string",
+                    "example": "RUB"
+                }
+            }
+        },
+        "sdk.tariffSummaryDTO": {
+            "type": "object",
+            "required": [
+                "data_amount",
+                "duration",
+                "id"
+            ],
+            "properties": {
+                "data_amount": {
+                    "$ref": "#/definitions/sdk.trafficAmountDTO"
+                },
+                "duration": {
+                    "$ref": "#/definitions/sdk.durationAmountDTO"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "0e2a8c1d-3b4f-5a6e-7c8d-9f0a1b2c3d4e"
+                }
+            }
+        },
+        "sdk.tariffsEsimDTO": {
+            "type": "object",
+            "required": [
+                "country",
+                "id",
+                "image_url",
+                "name",
+                "phone_code",
+                "slug",
+                "updated_at"
+            ],
+            "properties": {
+                "country": {
+                    "type": "string",
+                    "example": "UZ"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "8a17d9b6-1c2e-4f3a-9d6e-3a4b5c6d7e8f"
+                },
+                "image_url": {
+                    "type": "string",
+                    "example": "https://cdn.example.com/uz.jpg"
+                },
+                "min_price_amount": {
+                    "description": "MinPriceAmount / MinPriceCurrency render the \"from N\" label on a\ncountry row: the cheapest tariff that is purchasable right now. Both\nare null together when the eSIM has none — clients treat that as \"no\nprice to show\", not as a free plan, so the fields are pointers and\ncarry no binding:\"required\".\n\nMinPriceAmount is in MAJOR units (4550 minor → 45.5), matching\ntariffDTO.PriceAmountMinor's existing — and misleadingly named —\nconvention. Keeping the two consistent matters more than fixing the\nname, which is already load-bearing for shipped clients.",
+                    "type": "number",
+                    "x-nullable": true,
+                    "example": 45.5
+                },
+                "min_price_currency": {
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "RUB"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Узбекистан"
+                },
+                "network": {
+                    "description": "Network is the operator and network line of the country (spec web\n§7.5); null when the admin has not set one. Old apps ignore it.",
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "Turkcell · 4G/5G"
+                },
+                "phone_code": {
+                    "type": "string",
+                    "example": "+998"
+                },
+                "photo_url": {
+                    "description": "PhotoURL is the scenic country photo (the catalogue card background and\nthe tariffs-screen header), as opposed to ImageURL's flag icon. It is a\npointer so an unset photo serializes as JSON null rather than \"\": the\nclient contract treats null/empty/absent alike, and null states \"no\nphoto\" without shipping a meaningless empty string to every client.",
+                    "type": "string",
+                    "x-nullable": true,
+                    "example": "https://cdn.example.com/tr-istanbul.jpg"
+                },
+                "seo_description": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "seo_text": {
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "seo_title": {
+                    "description": "SEO overrides for the country page; null = not set (the web derives them).",
+                    "type": "string",
+                    "x-nullable": true
+                },
+                "slug": {
+                    "description": "Slug is the readable page address of the country (\"turtsiya\"); it is\naccepted wherever {id} is, and is what the web builds /services/esim/\u003cslug\u003e from.",
+                    "type": "string",
+                    "example": "turtsiya"
+                },
+                "updated_at": {
+                    "description": "UpdatedAt (RFC 3339, UTC) feeds sitemap lastmod.",
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-10-16T09:30:00Z"
+                }
+            }
+        },
+        "sdk.trafficAmountDTO": {
+            "type": "object",
+            "required": [
+                "amount",
+                "unit"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "example": 30
+                },
+                "unit": {
+                    "type": "string",
+                    "enum": [
+                        "MB",
+                        "GB"
+                    ],
+                    "example": "GB"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "AdminSession": {
+            "description": "Admin panel session cookie (set by POST /v1/admin/login).",
+            "type": "apiKey",
+            "name": "admin_session",
+            "in": "cookie"
+        },
+        "ClientToken": {
+            "description": "RS256 SDK client_token, prefixed with \"Bearer \".",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        },
+        "PartnerToken": {
+            "description": "Partner secret token (sk_live_*), prefixed with \"Bearer \".",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        },
+        "PublishableKey": {
+            "description": "SDK publishable key (pk_live_*).",
+            "type": "apiKey",
+            "name": "X-Publishable-Key",
+            "in": "header"
+        }
+    }
+}

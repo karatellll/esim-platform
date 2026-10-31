@@ -1,6 +1,16 @@
 import type { CatalogTariff } from '../../../../packages/shared/contracts/catalog';
 
-export type TripPreferences = { preferredDurationDays?: number; preferredDataGb?: number };
+export type TripPreferences = { preferredDurationDays?: number; preferredDataGb?: number; preferUnlimited?: boolean };
+
+// Two weeks uses a 15-day vendor package but a two-week usage estimate.
+export function getTripPreferences(days: number | null, weeklyGb: number | null): TripPreferences {
+  const estimateDays = days === 15 || days === null ? 14 : Math.min(days, 30);
+  return {
+    preferredDurationDays: days ? Math.min(days, 30) : weeklyGb ? 15 : undefined,
+    preferredDataGb: weeklyGb ? Math.ceil(estimateDays / 7 * weeklyGb + 1) : undefined,
+    ...(weeklyGb && Math.ceil(estimateDays / 7 * weeklyGb + 1) > 25 ? { preferUnlimited: true } : {}),
+  };
+}
 
 export function tariffDays(tariff: CatalogTariff): number | null {
   const unit = tariff.duration.unit.toLowerCase();
@@ -26,6 +36,12 @@ export function recommendTariff(tariffs: readonly CatalogTariff[], preferences: 
       && (!gigabytes || (volume !== null && volume >= gigabytes));
   });
   if (!matches.length) return null;
+  if (preferences.preferUnlimited) {
+    const unlimited = matches.filter(tariff => tariff.is_unlimited);
+    if (unlimited.length && unlimited.every(tariff => tariff.price_currency === unlimited[0].price_currency)) {
+      return [...unlimited].sort((a, b) => a.price_amount_minor - b.price_amount_minor)[0];
+    }
+  }
   const currency = matches[0].price_currency;
   if (matches.some((tariff) => tariff.price_currency !== currency)) return null;
   return [...matches].sort((a, b) => a.price_amount_minor - b.price_amount_minor

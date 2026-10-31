@@ -1,5 +1,7 @@
 import type { OrderListItem } from '../../../../packages/shared/contracts/checkout';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, View } from '../ui/Surface';
+import { StyleSheet } from '../ui/design';
+import { Text } from '../ui/Text';
 import { CountryFlag } from './CountryFlag';
 import { orderCountry, orderDataLabel, orderPrice, orderStateLabel } from '../orders/display';
 import { colors } from '../theme';
@@ -27,7 +29,7 @@ export function PurchasedOrders({ orders, onSelect }: { orders: OrderListItem[];
 
 const styles = StyleSheet.create({
   list: { gap: 12, width: '100%' },
-  card: { padding: 18, gap: 18, borderRadius: 28, backgroundColor: colors.surface },
+  card: { padding: 18, gap: 18, borderRadius: 28, borderCurve: 'continuous', backgroundColor: colors.surface },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   copy: { flex: 1 },
   title: { fontSize: 18, lineHeight: 26, fontWeight: '700', color: colors.text },
@@ -37,7 +39,7 @@ const styles = StyleSheet.create({
   muted: { fontSize: 12, lineHeight: 18, color: colors.mutedText },
   price: { fontSize: 16, lineHeight: 22, fontWeight: '600', color: colors.text },
   usage: { fontSize: 14, lineHeight: 20, color: colors.mutedText },
-  button: { height: 48, borderRadius: 16, backgroundColor: colors.selectedTab, alignItems: 'center', justifyContent: 'center' },
+  button: { height: 48, borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.selectedTab, alignItems: 'center', justifyContent: 'center' },
   buttonText: { fontSize: 16, lineHeight: 22, fontWeight: '600', color: colors.text },
   pressed: { opacity: 0.7 },
 });

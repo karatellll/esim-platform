@@ -1,0 +1,12 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="62" height="29.32" viewBox="0 0 62 29.32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="&#208;&#156;&#208;&#190;&#208;&#189;&#208;&#181;&#209;&#130;&#208;&#176;">
+<rect id="Rectangle" y="11.16" width="62" height="7" fill="#121214"/>
+<ellipse id="Ellipse" cx="31" cy="18.16" rx="31" ry="11.16" fill="#121214"/>
+<rect id="Rectangle_2" y="14.66" width="62" height="1.5" fill="white" fill-opacity="0.08"/>
+<ellipse id="Ellipse_2" cx="31" cy="11.16" rx="31" ry="11.16" fill="#29292E"/>
+<mask id="stroke0_0_117" fill="white">
+<path d="M55.18 11.16C55.18 15.9675 44.3542 19.8648 31 19.8648C17.6458 19.8648 6.82 15.9675 6.82 11.16C6.82 6.35247 17.6458 2.4552 31 2.4552C44.3542 2.4552 55.18 6.35247 55.18 11.16Z"/>
+</mask>
+<path id="Ellipse_3" d="M55.18 11.16C55.18 15.9675 44.3542 19.8648 31 19.8648C17.6458 19.8648 6.82 15.9675 6.82 11.16C6.82 6.35247 17.6458 2.4552 31 2.4552C44.3542 2.4552 55.18 6.35247 55.18 11.16Z" stroke-width="3" stroke="#CCF53D" stroke-opacity="0.55" mask="url(#stroke0_0_117)"/>
+</g>
+</svg>

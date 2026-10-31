@@ -1,5 +1,6 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import { StyleSheet, View } from 'react-native';
+import { View } from '../ui/Surface';
+import { StyleSheet } from '../ui/design';
 
 import { type RootTabParamList, tabs } from '../navigation/tabs';
 import { colors } from '../theme';

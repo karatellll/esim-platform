@@ -1,0 +1,30 @@
+import { Image } from 'expo-image';
+import { useState } from 'react';
+import { Modal, Share } from 'react-native';
+import { ScrollView } from '../ui/ScrollView';
+import { Pressable, View } from '../ui/Surface';
+import { StyleSheet } from '../ui/design';
+import { Text } from '../ui/Text';
+import type { OrderData } from '../../../../packages/shared/contracts/checkout';
+import { orderCountry, orderDataLabel, orderStateLabel } from '../orders/display';
+import { trafficDisplay } from '../orders/installation';
+import { formatDuration } from '../tariffs/tariffs';
+import { CountryFlag } from './CountryFlag';
+import { AllowanceRing } from './PurchasedEsimView';
+import { colors } from '../theme';
+export function EsimDetailsView({ order, topInset, bottomInset, onBack, onInstall, onCatalog }: { order: OrderData; topInset: number; bottomInset: number; onBack: () => void; onInstall: () => void; onCatalog: () => void }) {
+  const [topUp, setTopUp] = useState(false); const [error, setError] = useState('');
+  const traffic = trafficDisplay(order);
+  const date = (value: string | null | undefined) => value ? new Date(value).toLocaleDateString('ru', { day: 'numeric', month: 'long' }) : 'Пока нет данных';
+  const share = async () => { try { await Share.share({ message: `${order.esim.name} · ${orderDataLabel(order)} · ${formatDuration(order.tariff.duration)}` }); } catch { setError('Не удалось поделиться'); } };
+  return <View style={s.screen}><ScrollView contentContainerStyle={[s.content, { paddingTop: topInset + 8, paddingBottom: bottomInset + 20 }]}>
+    <View style={s.nav}><Pressable onPress={onBack} accessibilityLabel="Назад" style={s.back}><Image source={require('../../assets/mvp/caa7b.svg')} style={s.icon} /></Pressable><Text style={s.title}>Моя eSIM</Text><Pressable onPress={share} accessibilityLabel="Поделиться" style={s.back}><Image source={require('../../assets/mvp/f4b30.svg')} style={s.icon} /></Pressable></View>
+    <View style={s.card}><View style={s.row}><CountryFlag country={orderCountry(order)} size={40} /><Text style={[s.title, { flex: 1 }]}>{order.esim.name}</Text><Text style={s.badge}>{orderStateLabel(order)}</Text></View>
+      <View style={s.row}><AllowanceRing ratio={traffic.ratio} amount={traffic.amount} caption={traffic.observed ? `${traffic.unit} осталось` : 'остаток уточняется'} /><View style={{ flex: 1, gap: 12 }}><Text style={s.muted}>Трафик</Text><Text style={s.body}>{traffic.legend}</Text><Text style={s.muted}>Срок</Text><Text style={s.body}>{formatDuration(order.tariff.duration)}</Text></View></View>
+    </View>
+    <View style={s.actions}><Pressable onPress={() => setTopUp(true)} style={[s.action, { backgroundColor: colors.lime }]}><Text style={[s.title, { color: colors.ink }]}>+</Text><Text style={{ color: colors.ink }}>Докупить</Text></Pressable><Pressable onPress={onInstall} style={s.action}><Image source={require('../../assets/installation/qr.svg')} style={s.icon} /><Text style={s.body}>Установка</Text></Pressable><Pressable onPress={share} style={s.action}><Image source={require('../../assets/mvp/f4b30.svg')} style={s.icon} /><Text style={s.body}>Поделиться</Text></Pressable></View>
+    <View style={s.card}><Text style={s.title}>Пакет</Text>{[['Длительность', formatDuration(order.tariff.duration)], ['Активирована', date(order.activated_at)], ['Истекает', date(order.expires_at)]].map(([label, value]) => <View key={label} style={s.detail}><Text style={s.muted}>{label}</Text><Text style={s.body}>{value}</Text></View>)}</View>
+    <View style={s.card}><Text style={s.title}>Сети</Text><Text style={s.muted}>Информация об операторах для этой eSIM пока недоступна.</Text></View>{!!error && <Text style={s.muted}>{error}</Text>}
+  </ScrollView><Modal visible={topUp} transparent animationType="slide" onRequestClose={() => setTopUp(false)}><View style={s.overlay}><Pressable style={StyleSheet.absoluteFill} onPress={() => setTopUp(false)} accessibilityLabel="Закрыть" /><View style={s.sheet}><Text style={s.title}>Докупить</Text><Text style={s.muted}>Пополнение и смена страны на этой eSIM пока недоступны.</Text><View style={s.card}><Text style={s.body}>Новая поездка</Text><Text style={s.muted}>Можно приобрести отдельную eSIM для другой страны. Её потребуется установить.</Text></View><Pressable onPress={() => { setTopUp(false); onCatalog(); }} style={s.button}><Text style={s.body}>Выбрать новую eSIM</Text></Pressable><Pressable onPress={() => setTopUp(false)} style={s.buttonSecondary}><Text style={s.body}>Закрыть</Text></Pressable></View></View></Modal></View>;
+}
+const s=StyleSheet.create({screen:{flex:1,backgroundColor:colors.background},content:{width:'100%',paddingHorizontal:12,gap:12},nav:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingHorizontal:12},back:{width:40,height:40,borderRadius:20, borderCurve: 'continuous',backgroundColor:colors.selectedTab,alignItems:'center',justifyContent:'center'},icon:{width:20,height:20},title:{fontSize:22,lineHeight:28,fontWeight:'800',color:colors.text},body:{fontSize:14,lineHeight:20,color:colors.text},muted:{fontSize:14,lineHeight:20,color:colors.mutedText},card:{padding:18,borderRadius:24, borderCurve: 'continuous',backgroundColor:colors.surface,gap:16},row:{flexDirection:'row',alignItems:'center',gap:12},badge:{color:colors.lime,fontSize:11,maxWidth:90},actions:{flexDirection:'row',gap:8},action:{flex:1,minHeight:72,borderRadius:20, borderCurve: 'continuous',backgroundColor:colors.surface,alignItems:'center',justifyContent:'center',gap:8},detail:{flexDirection:'row',justifyContent:'space-between',gap:8,paddingVertical:8,borderBottomWidth:1,borderBottomColor:'#38383c'},overlay:{flex:1,backgroundColor:'rgba(0,0,0,0.65)',justifyContent:'flex-end'},sheet:{padding:24,paddingBottom:40,borderTopLeftRadius:32,borderTopRightRadius:32,backgroundColor:'#1d1d20',gap:16,width:'100%'},button:{backgroundColor:colors.tariffAccent,padding:18,borderRadius:16, borderCurve: 'continuous',alignItems:'center'},buttonSecondary:{padding:12,alignItems:'center'}});

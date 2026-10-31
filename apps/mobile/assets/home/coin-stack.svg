@@ -1,0 +1,12 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="104" height="50.44" viewBox="0 0 104 50.44" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="&#208;&#156;&#208;&#190;&#208;&#189;&#208;&#181;&#209;&#130;&#208;&#176;">
+<rect id="Rectangle" y="18.72" width="104" height="13" fill="#121214"/>
+<ellipse id="Ellipse" cx="52" cy="31.72" rx="52" ry="18.72" fill="#121214"/>
+<rect id="Rectangle_2" y="25.22" width="104" height="1.5" fill="white" fill-opacity="0.08"/>
+<ellipse id="Ellipse_2" cx="52" cy="18.72" rx="52" ry="18.72" fill="#29292E"/>
+<mask id="stroke0_0_123" fill="white">
+<path d="M92.56 18.72C92.56 26.7842 74.4007 33.3216 52 33.3216C29.5993 33.3216 11.44 26.7842 11.44 18.72C11.44 10.6558 29.5993 4.1184 52 4.1184C74.4007 4.1184 92.56 10.6558 92.56 18.72Z"/>
+</mask>
+<path id="Ellipse_3" d="M92.56 18.72C92.56 26.7842 74.4007 33.3216 52 33.3216C29.5993 33.3216 11.44 26.7842 11.44 18.72C11.44 10.6558 29.5993 4.1184 52 4.1184C74.4007 4.1184 92.56 10.6558 92.56 18.72Z" stroke-width="3" stroke="#CCF53D" stroke-opacity="0.55" mask="url(#stroke0_0_123)"/>
+</g>
+</svg>

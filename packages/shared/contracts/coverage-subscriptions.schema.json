@@ -1,0 +1,36 @@
+{
+  "$defs": {
+    "CoverageSubscription": {
+      "properties": {
+        "country_iso2": {
+          "title": "Country Iso2",
+          "type": "string"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "country_iso2",
+        "status"
+      ],
+      "title": "CoverageSubscription",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "data": {
+      "items": {
+        "$ref": "#/$defs/CoverageSubscription"
+      },
+      "title": "Data",
+      "type": "array"
+    }
+  },
+  "required": [
+    "data"
+  ],
+  "title": "CoverageSubscriptions",
+  "type": "object"
+}

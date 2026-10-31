@@ -1,17 +1,19 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Image } from 'expo-image';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, Platform } from 'react-native';
+import { Pressable, View, AnimatedView } from '../ui/Surface';
+import { fonts, StyleSheet } from '../ui/design';
+import { Text } from '../ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { tabs } from '../navigation/tabs';
-import { colors, tabBarLayout } from '../theme';
-import { TabBarBackdrop, type TabBarBackdropProps } from './TabBarBackdrop';
+import { colors, getTabBarBottom, tabBarLayout } from '../theme';
 
-export function FloatingTabBar({ state, navigation, blurTarget, isFocused }: BottomTabBarProps & Pick<TabBarBackdropProps, 'blurTarget'> & { isFocused: boolean }) {
+export function FloatingTabBar({ state, navigation, isFocused }: BottomTabBarProps & { isFocused: boolean }) {
   const insets = useSafeAreaInsets();
-  // The design leaves 36 pt below the bar, including the 34 pt home-indicator area.
-  const bottom = Platform.OS === 'web' ? 36 : Math.max(insets.bottom, 12) + 2;
+  // Figma 64:3349: 988 - 911 - 64 = 13 pt below the bar.
+  const bottom = getTabBarBottom(insets.bottom, Platform.OS === 'web');
   const [layouts, setLayouts] = useState<Record<string, { x: number; width: number }>>({});
   const [indicatorReady, setIndicatorReady] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -55,7 +57,6 @@ export function FloatingTabBar({ state, navigation, blurTarget, isFocused }: Bot
 
   return (
     <>
-      <TabBarBackdrop bottom={bottom} blurTarget={blurTarget} />
       <View
         pointerEvents="box-none"
         style={[
@@ -68,7 +69,7 @@ export function FloatingTabBar({ state, navigation, blurTarget, isFocused }: Bot
         ]}
       >
         <View style={styles.bar} testID="tab-bar">
-          <Animated.View
+          <AnimatedView
             pointerEvents="none"
             accessible={false}
             testID="tab-active-background"
@@ -144,11 +145,9 @@ const styles = StyleSheet.create({
   },
   bar: {
     width: '100%',
-    maxWidth: 351,
-    alignSelf: 'center',
     height: tabBarLayout.height,
     padding: tabBarLayout.padding,
-    borderRadius: tabBarLayout.borderRadius,
+    borderRadius: tabBarLayout.borderRadius, borderCurve: 'continuous',
     backgroundColor: colors.tabBar,
     flexDirection: 'row',
     alignItems: 'center',
@@ -157,10 +156,11 @@ const styles = StyleSheet.create({
     boxShadow: '0px -2px 10px rgba(0, 0, 0, 0.4)',
   },
   item: {
+    paddingHorizontal: 8,
     flex: 1,
     minWidth: 0,
     height: tabBarLayout.itemHeight,
-    borderRadius: tabBarLayout.itemRadius,
+    borderRadius: tabBarLayout.itemRadius, borderCurve: 'continuous',
     flexShrink: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: tabBarLayout.padding,
     height: tabBarLayout.itemHeight,
-    borderRadius: tabBarLayout.itemRadius,
+    borderRadius: tabBarLayout.itemRadius, borderCurve: 'continuous',
     backgroundColor: colors.selectedTab,
   },
   pressedItem: {
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.mutedText,
-    fontFamily: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'system-ui' }),
+    fontFamily: fonts.text,
     fontWeight: '500',
     fontSize: tabBarLayout.fontSize,
     lineHeight: tabBarLayout.lineHeight,

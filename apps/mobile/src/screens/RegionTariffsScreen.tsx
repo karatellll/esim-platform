@@ -1,16 +1,27 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { regionPhoto } from '../catalog/photos';
+import { recommendTariff, tariffGigabytes } from '../home/recommendation';
+import { formatCatalogPrice } from '../catalog/prices';
 import { useState } from 'react';
-import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Modal, Platform, Share, useWindowDimensions } from 'react-native';
+import { ScrollView } from '../ui/ScrollView';
+import { Pressable, View } from '../ui/Surface';
+import { fonts, StyleSheet } from '../ui/design';
+import { Text } from '../ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { countLabel, getCountries } from '../catalog/catalog';
 import { getRegionBundle, getRegionHeadingPrefix, orderRegionCountries, regionBundleName } from '../catalog/regions';
 import { CountryFlag } from '../components/CountryFlag';
+import { CatalogCountrySheet } from '../components/CatalogCountrySheet';
 import { useCatalogTariffs } from '../hooks/useCatalogTariffs';
 import type { RootStackParamList } from '../navigation/stack';
-import { durationKey, formatDataAmount, formatDuration, formatTariffPrice, getDefaultDuration, getDefaultTariff, getDurations, getTariffsForDuration } from '../tariffs/tariffs';
+import { durationKey, formatDataAmount, formatDuration, formatTariffPrice, getDefaultDuration, getDefaultTariff, getDurations, getTariffsForDuration, getTariffSavings } from '../tariffs/tariffs';
 import { colors } from '../theme';
+import { TariffSkeleton } from '../components/SkeletonLayouts';
+import { useSkeletonGate } from '../hooks/useSkeletonGate';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RegionTariffs'>;
 type Overlay = { type: 'countries' } | { type: 'notice'; title: string; message: string } | null;
@@ -26,17 +37,18 @@ export function RegionTariffsScreen({ route, navigation }: Props) {
   const { width } = useWindowDimensions();
   const bundle = getRegionBundle(category);
   const catalog = useCatalogTariffs(bundle?.id ?? null);
+  const skeleton = useSkeletonGate(!!bundle && catalog.state.status === 'loading');
   const countries = orderRegionCountries(getCountries([category]), category.title);
   const [durationSelection, setDurationSelection] = useState<string | null>(null);
   const [tariffSelection, setTariffSelection] = useState<string | null>(null);
   const [overlay, setOverlay] = useState<Overlay>(null);
-  const [countryQuery, setCountryQuery] = useState('');
   const data = catalog.state.status === 'ready' && catalog.state.data.esim.id === bundle?.id ? catalog.state.data : null;
   const tariffs = data?.tariffs ?? [];
   const durations = getDurations(tariffs);
-  const activeDuration = durations.some((duration) => durationKey(duration) === durationSelection) ? durationSelection : getDefaultDuration(tariffs);
+  const recommended = recommendTariff(tariffs, route.params);
+  const activeDuration = durations.some((duration) => durationKey(duration) === durationSelection) ? durationSelection : recommended ? durationKey(recommended.duration) : getDefaultDuration(tariffs);
   const visibleTariffs = getTariffsForDuration(tariffs, activeDuration);
-  const selected = visibleTariffs.find((tariff) => tariff.id === tariffSelection) ?? getDefaultTariff(visibleTariffs);
+  const selected = visibleTariffs.find((tariff) => tariff.id === tariffSelection) ?? visibleTariffs.find(tariff => tariff.id === recommended?.id) ?? getDefaultTariff(visibleTariffs);
   const topInset = Platform.OS === 'web' ? 48 : insets.top;
   const bottomPadding = Platform.OS === 'web' ? 42 : Math.max(insets.bottom, 12) + 8;
   const prefix = getRegionHeadingPrefix(category.title);
@@ -46,8 +58,6 @@ export function RegionTariffsScreen({ route, navigation }: Props) {
   const summary = selected && packageName
     ? `${packageName}\n${formatDataAmount(selected)} · ${formatDuration(selected.duration)}\n${formatTariffPrice(selected)}`
     : category.title;
-  const query = countryQuery.trim().toLocaleLowerCase('ru');
-  const filteredCountries = countries.filter((country) => `${country.display_name} ${country.country_iso2}`.toLocaleLowerCase('ru').includes(query));
 
   const share = async () => {
     if (Platform.OS === 'web') {
@@ -60,10 +70,12 @@ export function RegionTariffsScreen({ route, navigation }: Props) {
 
   return <View style={styles.screen} testID="screen-region-tariffs">
     <ScrollView style={styles.scroll} contentInsetAdjustmentBehavior="never" contentContainerStyle={[styles.content, { paddingTop: topInset + 8, paddingBottom: selected ? bottomPadding + 92 : bottomPadding + 20 }]}>
+      <View style={styles.heroPhoto} pointerEvents="none"><Image source={data?.esim.photo_url?.trim() ? { uri: data.esim.photo_url.trim() } : category.title.trim().toLocaleLowerCase('ru') === 'европа' ? require('../../assets/regions/europe.png') : regionPhoto(category.title)} style={StyleSheet.absoluteFill} contentFit="cover" accessible={false} /><LinearGradient colors={['rgba(20,20,22,0.55)', 'rgba(20,20,22,0)', 'rgba(20,20,22,0.35)', colors.background]} locations={[0, 0.3, 0.62, 1]} style={StyleSheet.absoluteFill} /></View>
       <View style={styles.navbar}>
         <Pressable onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Назад к категориям" testID="region-back" style={({ pressed }) => [styles.navButton, pressed && styles.pressed]}><Image source={assets.back} style={styles.navIcon} contentFit="contain" accessible={false} /></Pressable>
         <Pressable onPress={share} accessibilityRole="button" accessibilityLabel="Поделиться предложением" testID="region-share" style={({ pressed }) => [styles.navButton, pressed && styles.pressed]}><Image source={assets.share} style={styles.navIcon} contentFit="contain" accessible={false} /></Pressable>
       </View>
+      <View style={{ height: 140 }} />
       <View style={styles.heading} accessibilityRole="header" accessibilityLabel={`${prefix} ${category.title}`.trim()}>
         {prefix !== '' && <Text style={styles.title}>{prefix}</Text>}
         <View style={[styles.stickerFrame, { width: stickerWidth + 1.032 }]}>
@@ -81,7 +93,7 @@ export function RegionTariffsScreen({ route, navigation }: Props) {
           <CountryFlag key={`${country.id}-${country.image_url}`} country={country} size={24} />
           <Text style={styles.chipText}>{country.display_name}</Text>
         </Pressable>)}
-        {countries.length > 5 && <Pressable style={styles.moreChip} onPress={() => { setCountryQuery(''); setOverlay({ type: 'countries' }); }} accessibilityRole="button" accessibilityLabel={`Показать все страны категории: ${countries.length}`} testID="region-more-countries"><Text style={styles.chipText}>ещё {countries.length - 5}</Text></Pressable>}
+        {countries.length > 5 && <Pressable style={styles.moreChip} onPress={() => setOverlay({ type: 'countries' })} accessibilityRole="button" accessibilityLabel={`Показать все страны категории: ${countries.length}`} testID="region-more-countries"><Text style={styles.chipText}>ещё {countries.length - 5}</Text></Pressable>}
       </View>}
 
       {!bundle ? <View style={styles.status} testID="region-no-bundle"><Text style={styles.statusText}>{countries.length > 0 ? 'Региональный пакет пока недоступен. Выберите страну, чтобы посмотреть её тарифы.' : 'Направления категории пока недоступны.'}</Text></View>
@@ -89,7 +101,7 @@ export function RegionTariffsScreen({ route, navigation }: Props) {
             <Text style={styles.statusText}>{catalog.state.message}</Text>
             <Pressable onPress={catalog.reload} style={styles.action} accessibilityRole="button" testID="region-tariffs-retry"><Text style={styles.buttonText}>Повторить</Text></Pressable>
           </View>
-        : !data ? <View style={styles.status} testID="region-tariffs-loading"><ActivityIndicator color={colors.tariffAccent} /><Text style={styles.statusText}>Загружаем тарифы региона…</Text></View>
+        : !data ? skeleton.timedOut ? <View style={styles.status}><Text style={styles.statusText}>Загрузка тарифов заняла слишком много времени.</Text><Pressable onPress={() => { skeleton.restart(); catalog.reload(); }} style={styles.action} accessibilityRole="button"><Text style={styles.buttonText}>Повторить</Text></Pressable></View> : skeleton.visible ? <TariffSkeleton /> : null
         : tariffs.length === 0 ? <Text style={styles.statusText} testID="region-tariffs-empty">Тарифы регионального пакета пока недоступны.</Text>
         : <>
             {showPackageName && <Text style={styles.packageName} testID="region-package-name">Тарифы пакета «{packageName}»</Text>}
@@ -105,8 +117,10 @@ export function RegionTariffsScreen({ route, navigation }: Props) {
             <View style={styles.packages} testID="region-packages">
               {visibleTariffs.map((tariff) => {
                 const active = tariff.id === selected?.id;
+                const savings = getTariffSavings(tariff, visibleTariffs);
                 return <Pressable key={tariff.id} onPress={() => setTariffSelection(tariff.id)} style={({ pressed }) => [styles.package, active && styles.packageActive, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={`${formatDataAmount(tariff)}, ${formatDuration(tariff.duration)}, ${formatTariffPrice(tariff)}`} accessibilityState={{ selected: active }} aria-pressed={active} testID={`region-tariff-${tariff.id}`}>
-                  <Text style={styles.packageData} numberOfLines={1} adjustsFontSizeToFit>{formatDataAmount(tariff)}</Text>
+                  <View style={{ flex: 1, gap: 2 }}><Text style={styles.packageData} numberOfLines={1} adjustsFontSizeToFit>{formatDataAmount(tariff)}</Text><Text style={styles.unitPrice}>{tariff.is_unlimited ? 'Без ограничений по трафику' : tariffGigabytes(tariff) ? `${formatCatalogPrice({ amount: tariff.price_amount_minor / tariffGigabytes(tariff)!, currency: tariff.price_currency }).replace(/^от /, '')} за ГБ` : formatDuration(tariff.duration)}</Text></View>
+                  {(savings !== null || tariff.is_profitable_badge) && <View style={styles.badge} accessibilityLabel={savings !== null ? `На ${savings}% дешевле за ГБ, чем минимальный пакет` : 'Выгодный пакет'}><Text style={styles.badgeText}>{savings !== null ? `−${savings}%` : 'Выгодно'}</Text></View>}
                   <Text style={styles.packagePrice} numberOfLines={1}>{formatTariffPrice(tariff)}</Text>
                 </Pressable>;
               })}
@@ -116,36 +130,33 @@ export function RegionTariffsScreen({ route, navigation }: Props) {
     {selected && <View style={[styles.footer, { paddingBottom: bottomPadding }]}>
       <Pressable onPress={() => { if (data) navigation.navigate('Checkout', { country: data.esim, tariff: selected }); }} style={({ pressed }) => [styles.buy, pressed && styles.pressed]} accessibilityRole="button" testID="region-buy"><Text style={styles.buttonText}>Купить за {formatTariffPrice(selected)}</Text></Pressable>
     </View>}
-    <Modal visible={overlay !== null} transparent animationType="fade" onRequestClose={() => setOverlay(null)}>
+    {overlay?.type === 'countries' && <CatalogCountrySheet countries={countries} title={countLabel(countries.length)} subtitle={`Направления категории «${category.title}»`} onClose={() => setOverlay(null)} onSelectCountry={country => navigation.navigate('CountryTariffs', { country })} onSupport={() => navigation.navigate('Help')} testID="region-country-sheet" />}
+    <Modal visible={overlay?.type === 'notice'} transparent animationType="fade" onRequestClose={() => setOverlay(null)}>
       <View style={styles.modalBackdrop}>
-        <View style={[styles.modalCard, overlay?.type === 'countries' && styles.countriesModal]} accessibilityViewIsModal>
+        <View style={styles.modalCard} accessibilityViewIsModal>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{overlay?.type === 'countries' ? 'Страны категории' : overlay?.title}</Text>
+            <Text style={styles.modalTitle}>{overlay?.type === 'notice' ? overlay.title : ''}</Text>
             <Pressable onPress={() => setOverlay(null)} accessibilityRole="button" accessibilityLabel="Закрыть" testID="region-modal-close"><Text style={styles.closeText}>Закрыть</Text></Pressable>
           </View>
-          {overlay?.type === 'countries' ? <>
-            <TextInput value={countryQuery} onChangeText={setCountryQuery} placeholder="Найти страну" placeholderTextColor={colors.mutedText} accessibilityLabel="Найти страну категории" testID="region-country-search" style={styles.search} autoCapitalize="none" autoCorrect={false} />
-            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.countryList}>
-              {filteredCountries.map((country) => <Pressable key={country.id} style={styles.countryRow} accessibilityRole="button" onPress={() => { setOverlay(null); navigation.navigate('CountryTariffs', { country }); }} testID={`region-country-${country.country_iso2}`}>
-                <CountryFlag key={`${country.id}-${country.image_url}`} country={country} size={24} /><Text style={styles.countryText}>{country.display_name}</Text>
-              </Pressable>)}
-              {filteredCountries.length === 0 && <Text style={styles.statusText}>По запросу ничего не найдено.</Text>}
-            </ScrollView>
-          </> : <Text style={styles.noticeText} selectable>{overlay?.message}</Text>}
+          <Text style={styles.noticeText} selectable>{overlay?.type === 'notice' ? overlay.message : ''}</Text>
         </View>
       </View>
     </Modal>
   </View>;
 }
 
-const fontFamily = Platform.select({ ios: 'System', android: 'sans-serif', default: 'system-ui' });
-const displayFont = Platform.OS === 'web' ? 'Arial' : fontFamily;
+const fontFamily = fonts.text;
+const displayFont = fonts.display;
 const styles = StyleSheet.create({
+  heroPhoto: { position: 'absolute', left: 0, right: 0, top: 0, height: 380 },
+  unitPrice: { fontSize: 13, lineHeight: 16, color: '#8C8C99' },
+  badge: { backgroundColor: colors.lime, borderRadius: 8, borderCurve: 'continuous', paddingHorizontal: 8, paddingVertical: 2 },
+  badgeText: { color: colors.ink, fontSize: 12, fontWeight: '700' },
   screen: { flex: 1, backgroundColor: colors.background },
   scroll: { flex: 1 },
-  content: { width: '100%', maxWidth: 600, alignSelf: 'center', paddingHorizontal: 12, gap: 12 },
-  navbar: { paddingHorizontal: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  navButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.selectedTab, alignItems: 'center', justifyContent: 'center' },
+  content: { width: '100%', paddingHorizontal: 12, gap: 12 },
+  navbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  navButton: { width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous', backgroundColor: colors.selectedTab, alignItems: 'center', justifyContent: 'center' },
   navIcon: { width: 20, height: 20 },
   heading: { paddingHorizontal: 12, flexDirection: 'row', flexWrap: 'wrap', columnGap: 8, rowGap: 2, alignItems: 'center' },
   title: { fontFamily: displayFont, fontSize: 28, lineHeight: 36, fontWeight: '900', color: colors.text, letterSpacing: -0.56 },
@@ -155,37 +166,32 @@ const styles = StyleSheet.create({
   stickerText: { paddingHorizontal: 11, fontFamily: displayFont, fontSize: 28, lineHeight: 36, fontWeight: '900', color: colors.text, letterSpacing: -0.56, textAlign: 'center' },
   subtitle: { paddingHorizontal: 12, fontFamily, fontSize: 14, lineHeight: 20, letterSpacing: -0.056, color: 'rgba(255,255,255,0.55)' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: { minHeight: 32, maxWidth: '100%', paddingLeft: 4, paddingRight: 12, gap: 6, borderRadius: 16, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface },
+  chip: { minHeight: 32, maxWidth: '100%', paddingLeft: 4, paddingRight: 12, gap: 6, borderRadius: 16, borderCurve: 'continuous', flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface },
   chipText: { fontFamily, fontSize: 13, lineHeight: 19, fontWeight: '600', letterSpacing: -0.052, color: colors.text },
-  moreChip: { height: 32, paddingHorizontal: 12, borderRadius: 16, justifyContent: 'center', backgroundColor: colors.tariffAccent },
-  durations: { padding: 4, borderRadius: 14, backgroundColor: colors.surface, overflow: 'hidden' },
+  moreChip: { height: 32, paddingHorizontal: 12, borderRadius: 16, borderCurve: 'continuous', justifyContent: 'center', backgroundColor: colors.tariffAccent },
+  durations: { padding: 4, borderRadius: 14, borderCurve: 'continuous', backgroundColor: colors.surface, overflow: 'hidden' },
   durationContent: { flexGrow: 1 },
-  duration: { flexGrow: 1, minWidth: 80, height: 36, paddingHorizontal: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  duration: { flexGrow: 1, minWidth: 80, height: 36, paddingHorizontal: 12, borderRadius: 10, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   durationActive: { backgroundColor: colors.text },
   durationText: { fontFamily, fontSize: 14, lineHeight: 20, fontWeight: '600', letterSpacing: -0.056, color: 'rgba(255,255,255,0.6)' },
   durationTextActive: { color: colors.ink },
   packages: { gap: 8 },
-  package: { minHeight: 57, padding: 16, borderRadius: 20, backgroundColor: colors.surface, flexDirection: 'row', gap: 12, alignItems: 'center' },
+  package: { minHeight: 74, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 2, borderColor: 'transparent', borderRadius: 20, borderCurve: 'continuous', backgroundColor: colors.surface, flexDirection: 'row', gap: 12, alignItems: 'center' },
   packageActive: { borderWidth: 2, borderColor: colors.tariffAccent },
-  packageData: { flex: 1, fontFamily: displayFont, fontSize: 20, lineHeight: 25, fontWeight: '900', letterSpacing: -0.4, color: colors.text },
-  packagePrice: { fontFamily: displayFont, fontSize: 20, lineHeight: 25, fontWeight: '900', letterSpacing: -0.4, color: colors.text },
+  packageData: { fontFamily: displayFont, fontSize: 22, lineHeight: 28, fontWeight: '900', letterSpacing: -0.44, color: colors.text },
+  packagePrice: { fontFamily, fontSize: 16, lineHeight: 22, fontWeight: '600', letterSpacing: -0.064, color: 'rgba(255,255,255,0.7)' },
   packageName: { paddingHorizontal: 12, fontFamily, fontSize: 14, lineHeight: 20, color: colors.mutedText },
-  footer: { position: 'absolute', bottom: 0, width: '100%', maxWidth: 600, alignSelf: 'center', paddingTop: 12, paddingHorizontal: 12, backgroundColor: colors.background },
-  buy: { height: 56, borderRadius: 16, backgroundColor: colors.tariffAccent, alignItems: 'center', justifyContent: 'center' },
+  footer: { position: 'absolute', bottom: 0, width: '100%', paddingTop: 12, paddingHorizontal: 12, backgroundColor: colors.background },
+  buy: { height: 56, borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.tariffAccent, alignItems: 'center', justifyContent: 'center' },
   buttonText: { fontFamily, fontSize: 16, lineHeight: 22, fontWeight: '600', letterSpacing: -0.064, color: colors.text },
   status: { paddingVertical: 24, gap: 16, alignItems: 'center' },
   statusText: { fontFamily, fontSize: 14, lineHeight: 20, color: colors.mutedText, textAlign: 'center' },
-  action: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: 16, backgroundColor: colors.tariffAccent },
+  action: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.tariffAccent },
   pressed: { opacity: 0.8 },
   modalBackdrop: { flex: 1, padding: 20, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center' },
-  modalCard: { width: '100%', maxWidth: 520, maxHeight: '80%', padding: 20, gap: 20, borderRadius: 24, backgroundColor: colors.surface },
-  countriesModal: { height: '75%' },
+  modalCard: { width: '100%', maxWidth: 520, maxHeight: '80%', padding: 20, gap: 20, borderRadius: 24, borderCurve: 'continuous', backgroundColor: colors.surface },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   modalTitle: { fontFamily: displayFont, fontSize: 22, lineHeight: 28, fontWeight: '900', color: colors.text, flex: 1 },
   closeText: { fontFamily, fontSize: 14, lineHeight: 20, fontWeight: '600', color: colors.accent, paddingVertical: 8 },
-  search: { fontFamily, fontSize: 16, lineHeight: 22, padding: 12, borderRadius: 12, color: colors.text, backgroundColor: colors.selectedTab },
-  countryList: { gap: 4, paddingBottom: 12 },
-  countryRow: { paddingVertical: 12, flexDirection: 'row', gap: 12, alignItems: 'center' },
-  countryText: { fontFamily, fontSize: 16, lineHeight: 22, color: colors.text, flex: 1 },
   noticeText: { fontFamily, fontSize: 16, lineHeight: 24, color: colors.text },
 });

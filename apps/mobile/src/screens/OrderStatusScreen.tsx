@@ -1,11 +1,16 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform } from 'react-native';
+import { ScrollView } from '../ui/ScrollView';
+import { Pressable, View } from '../ui/Surface';
+import { fonts, StyleSheet } from '../ui/design';
+import { Text } from '../ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CountryFlag } from '../components/CountryFlag';
 import { InstallationSheet } from '../components/InstallationSheet';
+import { EsimDetailsView } from '../components/EsimDetailsView';
 import { PurchasedEsimView } from '../components/PurchasedEsimView';
 import { getOrderQr } from '../api/checkout';
 import { useAuth } from '../auth/AuthProvider';
@@ -49,7 +54,7 @@ export function OrderStatusScreen({ route, navigation }: Props) {
     const bottomInset = Platform.OS === 'web' ? 42 : Math.max(insets.bottom, 12) + 8;
     return <View style={styles.screen} testID="screen-order-status">
       <View style={styles.screen} accessibilityElementsHidden={installationOpen} importantForAccessibility={installationOpen ? 'no-hide-descendants' : 'auto'}>
-        <PurchasedEsimView order={order} topInset={topInset} bottomInset={bottomInset} onInstall={() => setInstallationOpen(true)} onLater={() => navigation.navigate('Main', { screen: 'MyEsims' })} />
+        {route.params.details ? <EsimDetailsView order={order} topInset={topInset} bottomInset={bottomInset} onBack={() => navigation.goBack()} onInstall={() => setInstallationOpen(true)} onCatalog={() => navigation.navigate('Main', { screen: 'Countries' })} /> : <PurchasedEsimView order={order} topInset={topInset} bottomInset={bottomInset} onInstall={() => setInstallationOpen(true)} onLater={() => navigation.navigate('Main', { screen: 'MyEsims' })} />}
       </View>
       {status.error && !installationOpen && <Pressable onPress={status.reload} style={styles.deliveredError} accessibilityRole="button"><Text style={styles.warning}>{status.error} Нажмите, чтобы повторить.</Text></Pressable>}
       {installationOpen && <InstallationSheet order={order} topInset={topInset} bottomInset={bottomInset} onClose={closeInstallation} onRefresh={status.reload} refreshing={status.loading} statusError={status.error} loadQr={() => {
@@ -89,21 +94,21 @@ export function OrderStatusScreen({ route, navigation }: Props) {
   </View>;
 }
 
-const fontFamily = Platform.select({ ios: 'System', android: 'sans-serif', default: 'system-ui' });
+const fontFamily = fonts.text;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  deliveredError: { position: 'absolute', left: 24, right: 24, top: 48, padding: 12, borderRadius: 16, backgroundColor: colors.surface },
-  content: { width: '100%', maxWidth: 375, alignSelf: 'center', paddingHorizontal: 24, gap: 16, alignItems: 'center' },
+  deliveredError: { position: 'absolute', left: 24, right: 24, top: 48, padding: 12, borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.surface },
+  content: { width: '100%', paddingHorizontal: 24, gap: 16, alignItems: 'center' },
   spinner: { width: 120, height: 120 },
-  title: { fontFamily: Platform.OS === 'web' ? 'Arial' : fontFamily, fontSize: 26, lineHeight: 33, letterSpacing: -0.52, fontWeight: '900', color: colors.text, textAlign: 'center' },
+  title: { fontFamily: fonts.display, fontSize: 26, lineHeight: 33, letterSpacing: -0.52, fontWeight: '900', color: colors.text, textAlign: 'center' },
   description: { fontFamily, fontSize: 16, lineHeight: 22, letterSpacing: -0.064, color: 'rgba(255,255,255,0.6)', textAlign: 'center' },
-  summary: { paddingLeft: 12, paddingRight: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, backgroundColor: colors.surface },
+  summary: { paddingLeft: 12, paddingRight: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.surface },
   summaryText: { flexShrink: 1, fontFamily, fontSize: 14, lineHeight: 20, letterSpacing: -0.056, fontWeight: '600', color: colors.text },
   number: { fontFamily, fontSize: 13, lineHeight: 19, color: colors.mutedText },
   warning: { fontFamily, fontSize: 14, lineHeight: 20, color: '#FFB59C', textAlign: 'center' },
-  footer: { position: 'absolute', bottom: 0, width: '100%', maxWidth: 375, alignSelf: 'center', backgroundColor: colors.background, paddingTop: 12, paddingHorizontal: 12, gap: 10 },
-  pay: { height: 56, borderRadius: 16, backgroundColor: colors.tariffAccent, alignItems: 'center', justifyContent: 'center' },
-  refresh: { height: 48, borderRadius: 16, backgroundColor: colors.selectedTab, alignItems: 'center', justifyContent: 'center' },
+  footer: { position: 'absolute', bottom: 0, width: '100%', backgroundColor: colors.background, paddingTop: 12, paddingHorizontal: 12, gap: 10 },
+  pay: { height: 56, borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.tariffAccent, alignItems: 'center', justifyContent: 'center' },
+  refresh: { height: 48, borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.selectedTab, alignItems: 'center', justifyContent: 'center' },
   buttonText: { fontFamily, fontSize: 16, lineHeight: 22, fontWeight: '600', color: colors.text },
   back: { fontFamily, fontSize: 14, lineHeight: 20, fontWeight: '600', color: colors.mutedText, textAlign: 'center' },
 });

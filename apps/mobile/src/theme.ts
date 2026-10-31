@@ -14,8 +14,8 @@ export const colors = {
 } as const;
 
 export const tabBarLayout = {
+  bottomOffset: 13,
   height: 64,
-  backdropFadeHeight: 48,
   horizontalMargin: 12,
   padding: 6,
   borderRadius: 24,
@@ -27,3 +27,7 @@ export const tabBarLayout = {
   lineHeight: 14,
   letterSpacing: -0.048,
 } as const;
+
+export function getTabBarBottom(bottomInset: number, web = false) {
+  return web ? tabBarLayout.bottomOffset : Math.max(tabBarLayout.bottomOffset, bottomInset - 21);
+}

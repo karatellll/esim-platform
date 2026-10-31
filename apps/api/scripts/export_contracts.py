@@ -4,7 +4,10 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.coverage import CoverageRequest, CoverageSubscription, CoverageSubscriptions
 from app.main import app
+from app.support import SupportMessageRequest, SupportResponse
+from app.auth_models import ProfileUpdateRequest
 from app.auth_models import AuthErrorResponse, SendCodeResponse, SessionResponse, MeResponse
 from app.models import CatalogCategoriesResponse, CatalogTariffsResponse
 from app.checkout import CheckoutSelection, CheckoutSummaryResponse, CheckoutOrderRequest
@@ -15,6 +18,12 @@ destination.mkdir(parents=True, exist_ok=True)
 
 for name, schema in [
     ("openapi.json", app.openapi()),
+    ("coverage-request.schema.json", CoverageRequest.model_json_schema()),
+    ("coverage-subscription.schema.json", CoverageSubscription.model_json_schema()),
+    ("coverage-subscriptions.schema.json", CoverageSubscriptions.model_json_schema()),
+    ("profile-update.schema.json", ProfileUpdateRequest.model_json_schema()),
+    ("support-request.schema.json", SupportMessageRequest.model_json_schema()),
+    ("support.schema.json", SupportResponse.model_json_schema()),
     ("auth-error.schema.json", AuthErrorResponse.model_json_schema()),
     ("auth-send-code.schema.json", SendCodeResponse.model_json_schema()),
     ("auth-session.schema.json", SessionResponse.model_json_schema()),

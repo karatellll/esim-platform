@@ -37,6 +37,21 @@ function volume(tariff: CatalogTariff): number {
   return tariff.data_amount.amount * (multipliers[tariff.data_amount.unit.toUpperCase()] ?? 1);
 }
 
+// Compare the cost per GB with the smallest package for the same duration and
+// currency. This is volume savings, never a checkout promotion or crossed price.
+export function getTariffSavings(tariff: CatalogTariff, tariffs: readonly CatalogTariff[]): number | null {
+  const knownVolume = (item: CatalogTariff) => !item.is_unlimited
+    && ['MB', 'GB', 'TB'].includes(item.data_amount.unit.toUpperCase())
+    && item.data_amount.amount > 0 && Number.isFinite(item.price_amount_minor) && item.price_amount_minor > 0;
+  if (!knownVolume(tariff)) return null;
+  const comparable = tariffs.filter(item => knownVolume(item) && item.price_currency === tariff.price_currency && durationKey(item.duration) === durationKey(tariff.duration))
+    .sort((a, b) => volume(a) - volume(b) || a.price_amount_minor - b.price_amount_minor);
+  const base = comparable[0];
+  if (!base || volume(tariff) <= volume(base)) return null;
+  const savings = Math.round((1 - (tariff.price_amount_minor / volume(tariff)) / (base.price_amount_minor / volume(base))) * 100);
+  return savings > 0 && savings < 100 ? savings : null;
+}
+
 export function getTariffsForDuration(tariffs: readonly CatalogTariff[], key: string | null): CatalogTariff[] {
   return tariffs.filter((tariff) => durationKey(tariff.duration) === key)
     .sort((a, b) => volume(a) - volume(b) || a.price_currency.localeCompare(b.price_currency) || a.price_amount_minor - b.price_amount_minor);

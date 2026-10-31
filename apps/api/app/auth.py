@@ -16,7 +16,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.auth_models import AuthErrorResponse, AuthUser, MeResponse, RefreshRequest, SendCodeRequest, SendCodeResponse, SessionResponse, VerifyCodeRequest
+from app.auth_models import ProfileUpdateRequest, AuthErrorResponse, AuthUser, MeResponse, RefreshRequest, SendCodeRequest, SendCodeResponse, SessionResponse, VerifyCodeRequest
 from app.config import Settings
 
 ACCESS_TTL = 15 * 60
@@ -55,6 +55,9 @@ def send_smtp_code(settings: Settings, recipient: str, code: str) -> None:
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS auth_users (
     id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auth_profiles (
+    user_id TEXT PRIMARY KEY REFERENCES auth_users(id), display_name TEXT NOT NULL, avatar TEXT
 );
 CREATE TABLE IF NOT EXISTS auth_challenges (
     id TEXT PRIMARY KEY, email TEXT NOT NULL, code_hash TEXT NOT NULL,
@@ -155,7 +158,9 @@ class AuthService:
         return SendCodeResponse(challenge_id=challenge_id, email=email, expires_in=self.settings.auth_otp_ttl_seconds, resend_after_seconds=60)
 
     def user(self, row) -> AuthUser:
-        return AuthUser(id=row["id"], email=row["email"], created_at=datetime.fromtimestamp(row["created_at"], timezone.utc))
+        with self.db() as conn:
+            profile = conn.execute("SELECT display_name, avatar FROM auth_profiles WHERE user_id=?", (row["id"],)).fetchone()
+        return AuthUser(id=row["id"], email=row["email"], display_name=profile["display_name"] if profile else "", avatar=profile["avatar"] if profile else None, created_at=datetime.fromtimestamp(row["created_at"], timezone.utc))
 
     def new_session(self, conn, user, now: int):
         access, refresh = secrets.token_urlsafe(32), secrets.token_urlsafe(48)
@@ -282,3 +287,17 @@ def me(request: Request, response: Response, credentials: HTTPAuthorizationCrede
         raise AuthError(401, "session_expired", "Войдите по почте ещё раз.")
     response.headers["Cache-Control"] = "no-store"
     return MeResponse(user=request.app.state.auth.me(token))
+
+
+@router.post("/api/me/profile", response_model=MeResponse)
+def update_profile(body: ProfileUpdateRequest, request: Request, response: Response, credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme)):
+    check_origin(request)
+    token = bearer(request)
+    if not token:
+        raise AuthError(401, "session_expired", "Войдите по почте ещё раз.")
+    service = request.app.state.auth
+    user = service.me(token)
+    with service.db() as conn:
+        conn.execute("INSERT INTO auth_profiles(user_id, display_name, avatar) VALUES (?,?,?) ON CONFLICT(user_id) DO UPDATE SET display_name=excluded.display_name, avatar=excluded.avatar", (str(user.id), body.display_name, body.avatar))
+    response.headers["Cache-Control"] = "no-store"
+    return MeResponse(user=service.me(token))

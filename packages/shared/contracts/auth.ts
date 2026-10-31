@@ -2,6 +2,8 @@
 export interface AuthUser {
   id: string;
   email: string;
+  display_name: string;
+  avatar: string | null;
   email_verified: boolean;
   created_at: string;
 }
@@ -34,3 +36,5 @@ export interface MeResponse { user: AuthUser }
 export interface AuthErrorResponse {
   error: { code: string; message: string; retry_after_seconds?: number | null };
 }
+
+export interface ProfileUpdateRequest { display_name: string; avatar: string | null }

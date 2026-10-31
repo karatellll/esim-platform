@@ -12,7 +12,7 @@ export class AuthApiError extends Error {
   }
 }
 
-async function authRequest<T>(path: string, body?: unknown, accessToken?: string): Promise<T> {
+export async function authRequest<T>(path: string, body?: unknown, accessToken?: string): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 25_000);
   try {
@@ -44,3 +44,5 @@ export const verifyEmailCode = (challengeId: string, code: string) => authReques
 export const refreshAuth = (refreshToken?: string | null) => authRequest<SessionResponse>('/api/auth/refresh', { client: sessionClient, ...(refreshToken ? { refresh_token: refreshToken } : {}) } satisfies RefreshRequest);
 export const logoutAuth = (accessToken: string | null, refreshToken?: string | null) => authRequest<void>('/api/auth/logout', { client: sessionClient, ...(refreshToken ? { refresh_token: refreshToken } : {}) } satisfies RefreshRequest, accessToken || undefined);
 export const fetchMe = (accessToken: string) => authRequest<MeResponse>('/api/me', undefined, accessToken);
+
+export const updateProfile = (accessToken: string, display_name: string, avatar: string | null) => authRequest<MeResponse>('/api/me/profile', { display_name, avatar }, accessToken);

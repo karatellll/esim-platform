@@ -1,6 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator } from 'react-native';
+import { Pressable, View } from '../ui/Surface';
+import { StyleSheet } from '../ui/design';
+import { Text, TextInput } from '../ui/Text';
 
 import { AuthApiError, sendEmailCode } from '../api/auth';
 import { useAuth } from '../auth/AuthProvider';
@@ -85,7 +88,7 @@ export function EmailCodeScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   codeField: { height: 60, position: 'relative' },
   cells: { flexDirection: 'row', gap: 8, height: 60 },
-  cell: { flex: 1, minWidth: 0, height: 60, borderRadius: 14, borderWidth: 2, borderColor: 'transparent', backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' },
+  cell: { flex: 1, minWidth: 0, height: 60, borderRadius: 14, borderCurve: 'continuous', borderWidth: 2, borderColor: 'transparent', backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' },
   digit: { fontSize: 26, lineHeight: 33, fontWeight: '900', letterSpacing: -0.52, color: colors.text, includeFontPadding: false },
   cursor: { position: 'absolute', width: 2, height: 24, backgroundColor: colors.tariffAccent },
   codeInput: { position: 'absolute', left: 0, top: 0, width: '100%', height: 60, color: 'transparent', backgroundColor: 'transparent', opacity: 0.02, fontSize: 16 },

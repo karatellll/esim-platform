@@ -1,0 +1,15 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "country_iso2": {
+      "pattern": "^[A-Z]{2}$",
+      "title": "Country Iso2",
+      "type": "string"
+    }
+  },
+  "required": [
+    "country_iso2"
+  ],
+  "title": "CoverageRequest",
+  "type": "object"
+}

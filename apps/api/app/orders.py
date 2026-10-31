@@ -108,7 +108,8 @@ class OrdersService:
             unlimited = item.data_amount.amount == 0 and any(marker in item.display_name.casefold() for marker in ("unlimited", "безлимит"))
             tariff = CatalogTariff(**item.model_dump(exclude={"esim", "id"}), id=str(item.id), is_unlimited=unlimited)
             country = CatalogEsim(id=item.esim.id, country_iso2=item.esim.country, display_name=item.esim.name,
-                                  image_url=item.esim.image_url, min_price_amount=item.esim.min_price_amount, min_price_currency=item.esim.min_price_currency)
+                                  image_url=item.esim.image_url, network=item.esim.network, photo_url=item.esim.photo_url,
+                                  min_price_amount=item.esim.min_price_amount, min_price_currency=item.esim.min_price_currency)
             return CheckoutSummary(country=country, tariff=tariff, amount=result.total_amount_minor,
                                    currency=result.total_currency, price_source="provider", ordering_available=True)
         except (ValueError, ValidationError, TypeError):

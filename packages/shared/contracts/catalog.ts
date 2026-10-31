@@ -8,6 +8,9 @@ export interface CatalogEsim {
   country_iso2: string | null;
   display_name: string;
   image_url: string | null;
+  // Optional SDK metadata; missing network must never become a 5G promise.
+  network?: string | null;
+  photo_url?: string | null;
   // Raw SDK value, passed through without rescaling.
   min_price_amount: number | null;
   min_price_currency: string | null;

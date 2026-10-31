@@ -83,6 +83,22 @@ def test_categories_use_server_token_and_return_only_catalog_fields():
     assert "private_provider_field" not in response.text
 
 
+@pytest.mark.parametrize("metadata", [{}, {"network": None, "photo_url": None},
+    {"network": "Turkcell · 4G/5G", "photo_url": "https://images.example/tr.jpg"}])
+def test_optional_sdk_network_and_photo_reach_categories_and_tariffs(metadata):
+    from copy import deepcopy
+    catalog = deepcopy(PAYLOAD)
+    catalog["data"][0]["items"][0].update(metadata)
+    tariffs = {"data": {"esim": catalog["data"][0]["items"][0], "tariffs": []}}
+    with TestClient(make_app(lambda request: httpx.Response(200, json=catalog if request.url.path == "/v1/sdk/esims" else tariffs))) as client:
+        item = client.get("/api/catalog/categories").json()["data"][0]["esims"][0]
+        esim = client.get(f'/api/catalog/esims/{item["id"]}/tariffs').json()["data"]["esim"]
+    for data in (item, esim):
+        assert data["network"] == metadata.get("network")
+        assert data["photo_url"] == metadata.get("photo_url")
+        assert "private_provider_field" not in data
+
+
 def test_missing_token_does_not_contact_provider():
     def handler(request):
         pytest.fail("Provider must not be contacted without a token")

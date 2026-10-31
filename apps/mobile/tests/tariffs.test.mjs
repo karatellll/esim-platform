@@ -1,11 +1,22 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { countryLocative, countryPreposition } from '../src/tariffs/countryTitle.ts';
-import { durationKey, formatDataAmount, formatDuration, formatTariffPrice, getDefaultDuration, getDefaultTariff, getDurations, getTariffsForDuration } from '../src/tariffs/tariffs.ts';
+import { durationKey, formatDataAmount, formatDuration, formatTariffPrice, getDefaultDuration, getDefaultTariff, getDurations, getTariffsForDuration, getTariffSavings } from '../src/tariffs/tariffs.ts';
 
 const plan = (id, amount, days, price = 199, extra = {}) => ({
   id, display_name: id, data_amount: { amount, unit: 'GB' }, duration: { amount: days, unit: 'day' },
   price_amount_minor: price, price_currency: 'RUB', is_profitable_badge: false, is_unlimited: false, ...extra,
+});
+
+test('volume savings use real prices for the same duration and currency', () => {
+  const one = plan('one', 1, 15, 290), five = plan('five', 5, 15, 890), ten = plan('ten', 10, 15, 1490);
+  assert.equal(getTariffSavings(five, [one, five, ten]), 39);
+  assert.equal(getTariffSavings(ten, [one, five, ten]), 49);
+  assert.equal(getTariffSavings(one, [one, five, ten]), null);
+  assert.equal(getTariffSavings(five, [plan('short', 1, 7, 500), five]), null);
+  assert.equal(getTariffSavings(five, [plan('usd', 1, 15, 500, { price_currency: 'USD' }), five]), null);
+  assert.equal(getTariffSavings(plan('unlimited', 0, 15, 200, { is_unlimited: true }), [one]), null);
+  assert.equal(getTariffSavings(plan('expensive', 5, 15, 2000), [one]), null);
 });
 
 test('duration options come only from actual plans, sorted and deduplicated', () => {

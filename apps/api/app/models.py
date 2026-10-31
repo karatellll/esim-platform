@@ -6,6 +6,8 @@ class CatalogEsim(BaseModel):
     country_iso2: str | None = None
     display_name: str = Field(min_length=1)
     image_url: str | None = None
+    network: str | None = None
+    photo_url: str | None = None
     min_price_amount: float | None = Field(default=None, ge=0, strict=True, allow_inf_nan=False)
     min_price_currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
 

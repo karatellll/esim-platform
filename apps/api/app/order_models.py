@@ -1,8 +1,9 @@
 """Local DTOs and provider response models verified against doc.json (21 Oct)."""
 from typing import Annotated, Literal
 from uuid import UUID
+from decimal import Decimal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from app.catalog import SDKCatalogItem, SDKTariff
 from app.models import CatalogEsim, CatalogTariff, TariffDataAmount, TariffDuration
@@ -18,6 +19,14 @@ class CheckoutSelection(BaseModel):
     promo_code: str | None = Field(default=None, max_length=64)
 
 
+class CheckoutPromotion(BaseModel):
+    # Our quote contract. No redemption API exists in the verified SDK contract;
+    # this field stays null and a submitted code is explicitly rejected.
+    code: str = Field(min_length=1, max_length=64)
+    subtotal_amount: Money
+    discount_amount: Annotated[float, Field(gt=0, strict=True, allow_inf_nan=False)]
+
+
 class CheckoutSummary(BaseModel):
     country: CatalogEsim
     tariff: CatalogTariff
@@ -28,6 +37,16 @@ class CheckoutSummary(BaseModel):
     quote_id: UUID | None = None
     expires_at: AwareDatetime | None = None
     existing_order_id: UUID | None = None
+    promotion: CheckoutPromotion | None = None
+
+    @model_validator(mode="after")
+    def consistent_promotion(self):
+        if self.promotion and (
+            not self.ordering_available or not self.quote_id or self.price_source != "provider"
+            or Decimal(str(self.promotion.subtotal_amount)) - Decimal(str(self.promotion.discount_amount)) != Decimal(str(self.amount))
+        ):
+            raise ValueError("Promotion must belong to a confirmed provider quote and match its total")
+        return self
 
 
 class CheckoutSummaryResponse(BaseModel):

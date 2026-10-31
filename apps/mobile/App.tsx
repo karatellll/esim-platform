@@ -1,3 +1,4 @@
+import { useFonts } from 'expo-font';
 import { DarkTheme, NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
@@ -20,6 +21,8 @@ const theme = {
 };
 
 export default function App() {
+  const [fontsLoaded, fontError] = useFonts({ InterTightBlack: require('./assets/fonts/InterTight-Black.ttf') });
+  if (!fontsLoaded && !fontError) return null;
   if (__DEV__ && Platform.OS === 'web' && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('visual') === 'installation') {
     const { InstallationPreview } = require('./qa/InstallationPreview');
     return <InstallationPreview />;

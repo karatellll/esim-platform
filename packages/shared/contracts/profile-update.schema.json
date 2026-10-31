@@ -1,0 +1,29 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "display_name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Display Name",
+      "type": "string"
+    },
+    "avatar": {
+      "anyOf": [
+        {
+          "maxLength": 300000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Avatar"
+    }
+  },
+  "required": [
+    "display_name"
+  ],
+  "title": "ProfileUpdateRequest",
+  "type": "object"
+}

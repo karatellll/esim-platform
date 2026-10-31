@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { AppState } from 'react-native';
 
 import type { AuthUser, SessionResponse } from '../../../../packages/shared/contracts/auth';
-import { AuthApiError, logoutAuth, refreshAuth, sessionClient, verifyEmailCode } from '../api/auth';
+import { AuthApiError, updateProfile, logoutAuth, refreshAuth, sessionClient, verifyEmailCode } from '../api/auth';
 import { loadRefreshToken, saveRefreshToken } from './sessionStorage';
 
 type AuthContextValue = {
@@ -13,6 +13,7 @@ type AuthContextValue = {
   retryRestore: () => Promise<void>;
   signIn: (challengeId: string, code: string) => Promise<void>;
   signOut: () => Promise<void>;
+  saveProfile: (name: string, avatar: string | null) => Promise<void>;
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -102,7 +103,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
     } finally { signingOut.current = false; }
   }, []);
 
-  return <AuthContext.Provider value={{ user: session?.user || null, accessToken: session?.access_token || null, loading, restoreError, retryRestore: restore, signIn, signOut }}>{children}</AuthContext.Provider>;
+  const saveProfile = async (name: string, avatar: string | null) => {
+    const current = sessionRef.current;
+    if (!current) throw new Error('Войдите в аккаунт');
+    const result = await updateProfile(current.access_token, name, avatar);
+    if (sessionRef.current?.user.id !== current.user.id) return;
+    const next = { ...sessionRef.current, user: result.user };
+    sessionRef.current = next;
+    setSession(next);
+  };
+
+  return <AuthContext.Provider value={{ user: session?.user || null, accessToken: session?.access_token || null, loading, restoreError, retryRestore: restore, signIn, signOut, saveProfile }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
