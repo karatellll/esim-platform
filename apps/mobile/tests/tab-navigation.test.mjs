@@ -132,6 +132,7 @@ test('iOS uses the shared tab icons and keeps native glass and spring transition
   const app = await mount({ platform: 'ios', liquidGlass: true });
   try {
     assert.equal(app.renderer.root.findByType('GlassView').props.glassEffectStyle, 'regular');
+    assert.equal(app.node('tab-material-glass-backdrop').props.intensity, 50);
     for (const [index, tab] of app.tabs.entries()) {
       assert.equal(app.node('tab-' + tab.testId).findByType('Image').props.source,
         index === 0 ? tab.activeIcon : tab.icon);
@@ -141,9 +142,10 @@ test('iOS uses the shared tab icons and keeps native glass and spring transition
     }
     await app.update(1);
     assert.equal(app.animations[0].useNativeDriver, true, 'iOS runs the spring on the native driver');
-    assert.ok(app.node('tab-selection-blur'));
+    assert.equal(app.node('tab-selection-blur').props.intensity, 85);
     await act(() => app.listeners.get('reduceTransparencyChanged')(true));
     assert.equal(app.renderer.root.findAllByType('GlassView').length, 0);
+    assert.equal(app.renderer.root.findAllByType('BlurView').length, 0);
     assert.ok(app.node('tab-material-opaque'));
     assert.ok(app.node('tab-selection-opaque'));
   } finally { await act(() => app.renderer.unmount()); }
@@ -154,6 +156,7 @@ test('iOS without native glass uses blur and the shared tab icons', async () => 
   const app = await mount({ platform: 'ios' });
   try {
     assert.equal(app.renderer.root.findByType('BlurView').props.tint, 'systemUltraThinMaterialDark');
+    assert.equal(app.renderer.root.findByType('BlurView').props.intensity, 100);
     assert.equal(app.node('tab-esims').findByType('Image').props.source, app.tabs[2].icon);
     await app.update(2);
     assert.equal(app.node('tab-esims').findByType('Image').props.source, app.tabs[2].activeIcon);

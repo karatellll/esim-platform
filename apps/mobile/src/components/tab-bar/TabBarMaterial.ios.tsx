@@ -24,16 +24,21 @@ export function TabBarMaterial({ reduceTransparency, selected = false, borderRad
   if (selected) {
     return <>
       <BlurView pointerEvents="none" testID="tab-selection-blur" tint="systemThinMaterialDark"
-        intensity={65} style={StyleSheet.absoluteFill} />
+        intensity={85} style={StyleSheet.absoluteFill} />
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
     </>;
   }
   if (LiquidGlass) {
-    return <LiquidGlass pointerEvents="none" testID="tab-material-liquid-glass"
-      glassEffectStyle="regular" colorScheme="dark"
-      tintColor="rgba(20,20,22,0.28)"
-      style={[StyleSheet.absoluteFill, { borderRadius }]} />;
+    return <>
+      {/* Liquid Glass controls its own blur. Soften the backdrop underneath it. */}
+      <BlurView pointerEvents="none" testID="tab-material-glass-backdrop" tint="systemUltraThinMaterialDark"
+        intensity={50} style={[StyleSheet.absoluteFill, { borderRadius, overflow: 'hidden' }]} />
+      <LiquidGlass pointerEvents="none" testID="tab-material-liquid-glass"
+        glassEffectStyle="regular" colorScheme="dark"
+        tintColor="rgba(20,20,22,0.28)"
+        style={[StyleSheet.absoluteFill, { borderRadius }]} />
+    </>;
   }
   return <BlurView pointerEvents="none" testID="tab-material-blur"
-    tint="systemUltraThinMaterialDark" intensity={88} style={StyleSheet.absoluteFill} />;
+    tint="systemUltraThinMaterialDark" intensity={100} style={StyleSheet.absoluteFill} />;
 }

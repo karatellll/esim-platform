@@ -54,6 +54,30 @@ for(const platform of ['web','android']){
  });
 }
 
+test('single-line fields use native vertical alignment while multiline fields keep their line height', async () => {
+  for (const platform of ['ios', 'android', 'web']) {
+    const { text } = ui(platform);
+    const field = { fontSize: 17, lineHeight: 23 };
+    let renderer;
+    await act(() => {
+      renderer = TestRenderer.create(React.createElement(React.Fragment, null,
+        React.createElement(text.TextInput, { style: [field, { height: 56, borderRadius: 16, paddingHorizontal: 16 }] }),
+        React.createElement(text.TextInput, { style: field, value: 'Страна' }),
+        React.createElement(text.TextInput, { style: field, multiline: true }),
+      ));
+    });
+    const [email, search, message] = renderer.root.findAllByType('Input').map(input => Object.assign({}, ...input.props.style.flat()));
+    assert.equal(email.lineHeight, platform === 'ios' ? undefined : 23);
+    assert.equal(search.lineHeight, email.lineHeight);
+    assert.equal(email.paddingHorizontal, 16);
+    assert.equal(email.textAlignVertical, platform === 'android' ? 'center' : undefined);
+    assert.equal(search.textAlignVertical, email.textAlignVertical);
+    assert.equal(message.lineHeight, 23);
+    assert.equal(message.textAlignVertical, undefined);
+    await act(() => renderer.unmount());
+  }
+});
+
 test('web: a tab bar shadow follows the painted contour, without a rectangular host shadow',async()=>{
  const {surface}=ui('web');let r;
  await act(()=>{r=TestRenderer.create(React.createElement(surface.View,{testID:'bar',style:{width:351,height:64,padding:6,borderRadius:24,backgroundColor:'#212124',boxShadow:'0px -2px 10px rgba(0, 0, 0, 0.4)'}}));});
