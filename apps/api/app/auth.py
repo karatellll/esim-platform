@@ -5,6 +5,7 @@ from email.message import EmailMessage
 from email.utils import parseaddr
 import hashlib
 import hmac
+import logging
 import secrets
 import smtplib
 import sqlite3
@@ -22,6 +23,7 @@ from app.config import Settings
 ACCESS_TTL = 15 * 60
 SESSION_TTL = 30 * 24 * 60 * 60
 COOKIE_NAME = "tursim_refresh"
+logger = logging.getLogger(__name__)
 
 
 class AuthError(Exception):
@@ -49,7 +51,7 @@ def send_smtp_code(settings: Settings, recipient: str, code: str) -> None:
         smtp.login(settings.smtp_username.strip(), settings.smtp_password.get_secret_value().replace(" ", ""))
         refused = smtp.send_message(message)
         if refused:
-            raise smtplib.SMTPException("Recipient rejected")
+            raise smtplib.SMTPRecipientsRefused(refused)
 
 
 SCHEMA = """
@@ -145,10 +147,20 @@ class AuthService:
             conn.commit()
         try:
             self.mailer(email, code)
-        except (smtplib.SMTPException, OSError):
+        except (smtplib.SMTPException, OSError) as error:
+            if isinstance(error, smtplib.SMTPResponseException):
+                smtp_codes = [error.smtp_code]
+            elif isinstance(error, smtplib.SMTPRecipientsRefused):
+                smtp_codes = sorted({code for code, _ in error.recipients.values()})
+            else:
+                smtp_codes = []
+            # The SMTP response and traceback can contain credentials or message data.
+            logger.warning(
+                "Email code delivery failed: error=%s smtp_codes=%s errno=%s",
+                type(error).__name__, smtp_codes, error.errno,
+            )
             with self.db() as conn:
                 conn.execute("UPDATE auth_challenges SET status='failed',code_hash='' WHERE id=?", (challenge_id,))
-            # SMTP exceptions may contain credentials or message data.
             raise AuthError(502, "mail_send_failed", "Не удалось отправить письмо. Попробуйте через минуту.", 60) from None
         with self.db() as conn:
             conn.execute("BEGIN IMMEDIATE")

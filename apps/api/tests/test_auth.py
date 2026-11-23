@@ -171,7 +171,9 @@ def test_failed_delivery_does_not_allow_login_or_leak_smtp_error(auth_env, caplo
     with TestClient(create_app(settings, auth_mailer=failing, auth_clock=lambda: now[0])) as broken:
         response = broken.post("/api/auth/email/send-code", json={"email": "person@example.com"})
         assert response.status_code == 502
+        assert "error=SMTPAuthenticationError smtp_codes=[535]" in caplog.text
         assert "smtp-test-password" not in response.text + caplog.text
+        assert "person@example.com" not in caplog.text
         assert captured[0] not in response.text
     with sqlite3.connect(settings.auth_database_path) as db:
         challenge_id = db.execute("SELECT id FROM auth_challenges").fetchone()[0]
