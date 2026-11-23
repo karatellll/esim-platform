@@ -42,7 +42,7 @@ export function CatalogCountries({ sections, onSelectCountry }: Props) {
 
 const fontFamily = fonts.text;
 const styles = StyleSheet.create({
-  sections: { width: '100%', gap: 16 },
+  sections: { width: '100%', gap: 12 },
   section: { width: '100%', gap: 16 },
   letter: { fontFamily, fontSize: 16, lineHeight: 22, fontWeight: '700', color: colors.mutedText, letterSpacing: -0.064 },
   card: { width: '100%', backgroundColor: 'rgba(38,38,41,0.5)', borderRadius: 20, borderCurve: 'continuous', paddingVertical: 2, overflow: 'hidden' },

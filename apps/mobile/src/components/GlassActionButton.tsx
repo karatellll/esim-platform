@@ -10,6 +10,7 @@ import { useTabBarAccessibility } from './tab-bar/useTabBarAccessibility';
 
 const actions = {
   back: { label: 'Назад', source: require('../../assets/mvp/caa7b.svg') },
+  close: { label: 'Закрыть', source: require('../../assets/checkout/close.svg') },
   share: { label: 'Поделиться', source: require('../../assets/mvp/f4b30.svg') },
 };
 

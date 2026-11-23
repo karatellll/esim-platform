@@ -1,3 +1,4 @@
+import { modalDragStyle, useModalSwipe } from '../hooks/useModalSwipe';
 import type { CatalogEsim } from '../../../../packages/shared/contracts/catalog';
 import { Image } from 'expo-image';
 import { useMemo, useRef, useState } from 'react';
@@ -5,12 +6,13 @@ import { ActivityIndicator, Keyboard, Modal, Platform, View as NativeView } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { countLabel } from '../catalog/catalog';
 import { highlightCountryName, searchCountries } from '../catalog/countrySearch';
-import { Pressable, View } from '../ui/Surface';
+import { AnimatedView, Pressable, View } from '../ui/Surface';
 import { ScrollView } from '../ui/ScrollView';
 import { fonts, StyleSheet } from '../ui/design';
 import { Text, TextInput } from '../ui/Text';
 import { colors } from '../theme';
 import { CountryFlag } from './CountryFlag';
+import { GlassActionButton } from './GlassActionButton';
 
 type Props = {
   countries: readonly CatalogEsim[];
@@ -33,6 +35,7 @@ export function CatalogCountrySheet({ countries, title, subtitle, onClose, onSel
   const [focused, setFocused] = useState(false);
   const filtered = useMemo(() => searchCountries(countries, query), [countries, query]);
   const close = () => { Keyboard.dismiss(); onClose(); };
+  const swipe = useModalSwipe(close, { waitForShow: true });
   const searching = !!query.trim();
   const groups = useMemo(() => {
     const sections = new Map<string, CatalogEsim[]>();
@@ -45,16 +48,17 @@ export function CatalogCountrySheet({ countries, title, subtitle, onClose, onSel
     return [...sections];
   }, [filtered, searching]);
 
-  return <Modal visible transparent animationType="slide" statusBarTranslucent onRequestClose={close}>
+  return <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={close} onShow={swipe.onShow}>
     <View style={s.overlay}>
+      <AnimatedView pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, swipe.backdropStyle]} />
       <Pressable style={StyleSheet.absoluteFill} onPress={close} accessibilityRole="button" accessibilityLabel="Закрыть список стран" />
-      <View style={[s.sheet, { marginTop: Platform.OS === 'web' ? 96 : Math.max(insets.top + 48, 64), paddingBottom: Math.max(insets.bottom, 24) }]} accessibilityViewIsModal testID={testID}>
-        <View style={s.handle} />
-        <View style={s.header}>
-          <View style={s.heading}><Text style={s.title} accessibilityRole="header">{title}</Text><Text style={s.subtitle}>{subtitle}</Text></View>
-          <Pressable onPress={close} style={s.close} accessibilityRole="button" accessibilityLabel="Закрыть список стран" testID={`${testID}-close`}>
-            <Image source={require('../../assets/countries/sheet-close.svg')} style={s.icon} accessible={false} />
-          </Pressable>
+      <AnimatedView onLayout={swipe.onLayout} style={[s.sheet, swipe.panelStyle, { marginTop: Platform.OS === 'web' ? 96 : Math.max(insets.top + 48, 64), paddingBottom: Math.max(insets.bottom, 24) }]} accessibilityViewIsModal testID={testID}>
+        <View {...swipe.panHandlers} style={[s.dragArea, modalDragStyle]} testID={`${testID}-drag`}>
+          <View style={s.handle} />
+          <View style={s.header}>
+            <View style={s.heading}><Text style={s.title} accessibilityRole="header">{title}</Text><Text style={s.subtitle}>{subtitle}</Text></View>
+            <GlassActionButton action="close" onPress={close} accessibilityLabel="Закрыть список стран" testID={`${testID}-close`} />
+          </View>
         </View>
         <NativeView style={[s.search, (focused || searching) && s.searchFocused]} testID={`${testID}-search-field`}>
           <Image source={require('../../assets/countries/search.svg')} style={s.icon} accessible={false} />
@@ -66,7 +70,7 @@ export function CatalogCountrySheet({ countries, title, subtitle, onClose, onSel
             <Image source={require('../../assets/countries/search-clear.svg')} style={s.clearIcon} accessible={false} />
           </Pressable>}
         </NativeView>
-        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
+        <ScrollView {...swipe.scrollProps} style={s.scroll} contentContainerStyle={s.scrollContent} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
           {loading ? <ActivityIndicator color={colors.tariffAccent} accessibilityLabel="Загрузка стран" style={{ marginVertical: 24 }} /> : error ? <View style={s.support}>
             <Text style={s.network} accessibilityRole="alert">{error}</Text>
             {onRetry && <Pressable onPress={onRetry} accessibilityRole="button"><Text style={s.supportLink}>Повторить</Text></Pressable>}
@@ -88,20 +92,21 @@ export function CatalogCountrySheet({ countries, title, subtitle, onClose, onSel
             <Pressable onPress={() => { close(); onSupport(); }} accessibilityRole="button" testID={`${testID}-contact`}><Text style={s.supportLink}>Напишите нам — подберём eSIM отдельно</Text></Pressable>
           </View>}
         </ScrollView>
-      </View>
+      </AnimatedView>
     </View>
   </Modal>;
 }
 
 const s = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)' },
+  overlay: { flex: 1, justifyContent: 'flex-end', alignItems: 'center' },
+  backdrop: { backgroundColor: 'rgba(0,0,0,0.6)' },
+  dragArea: { gap: 12 },
   sheet: { width: '100%', maxWidth: 600, flex: 1, paddingTop: 8, paddingHorizontal: 12, gap: 12, borderTopLeftRadius: 32, borderTopRightRadius: 32, backgroundColor: '#1C1C1F', overflow: 'hidden' },
   handle: { width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'center' },
   header: { paddingLeft: 12, paddingTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
   heading: { flex: 1, minWidth: 0, gap: 4 },
   title: { fontFamily: fonts.display, fontSize: 24, lineHeight: 29, fontWeight: '800', color: colors.text },
   subtitle: { fontSize: 14, lineHeight: 17, color: colors.mutedText },
-  close: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.1)' },
   icon: { width: 20, height: 20 },
   clearIcon: { width: 16, height: 16 },
   search: { height: 48, flexShrink: 0, paddingHorizontal: 12.5, borderWidth: 1.5, borderColor: 'transparent', borderRadius: 14, backgroundColor: '#2A2A2E', flexDirection: 'row', gap: 10, alignItems: 'center' },

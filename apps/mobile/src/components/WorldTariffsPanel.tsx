@@ -1,5 +1,6 @@
+import { SwipeDialog } from './SwipeDialog';
 import { Image } from 'expo-image';
-import { Modal, Platform, Share } from 'react-native';
+import { Platform, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TariffPurchaseBar } from './TariffPurchaseBar';
 import { TariffDiscountBadge } from './TariffDiscountBadge';
@@ -144,12 +145,10 @@ export function WorldTariffsPanel({ bundle, onReloadCatalog, catalogState, onBac
     {data && selected && <TariffPurchaseBar tariff={selected} bottomPadding={bottom} disabled={!online}
       onBuy={() => navigation.navigate('Checkout', { country: data.esim, tariff: selected })}
       testID="world-purchase" buyTestID="world-buy" />}
-    <Modal visible={shareText !== null} transparent animationType="fade" onRequestClose={() => setShareText(null)}>
-      <View style={styles.shareBackdrop}><View style={styles.shareCard} accessibilityViewIsModal>
-        <Text style={styles.buttonText} selectable>{shareText}</Text>
-        <Pressable style={styles.retry} accessibilityRole="button" onPress={() => setShareText(null)}><Text style={styles.buttonText}>Готово</Text></Pressable>
-      </View></View>
-    </Modal>
+    {shareText !== null && <SwipeDialog style={styles.shareCard} onClose={() => setShareText(null)} backdropColor="rgba(0,0,0,0.6)"
+      title={<Text style={styles.buttonText} selectable>{shareText}</Text>}>
+      <Pressable style={styles.retry} accessibilityRole="button" onPress={() => setShareText(null)}><Text style={styles.buttonText}>Готово</Text></Pressable>
+    </SwipeDialog>}
     {countriesOpen && <CatalogCountrySheet countries={countries} title="Страны каталога" subtitle="Покрытие пакета нужно уточнить"
       loading={catalogState.status === 'loading'} error={catalogState.status === 'error' ? catalogState.message : undefined} onRetry={onReloadCatalog}
       onClose={() => setCountriesOpen(false)} onSelectCountry={country => navigation.navigate('CountryTariffs', { country })} onSupport={() => navigation.navigate('Help')} testID="world-country-sheet" />}
@@ -188,7 +187,6 @@ const styles = StyleSheet.create({
   packageData: { fontFamily: displayFont, fontSize: 22, lineHeight: 28, fontWeight: '900', letterSpacing: -0.44, color: colors.text },
   unitPrice: { fontSize: 13, lineHeight: 16, color: '#8C8C99' },
   packagePrice: { fontSize: 16, lineHeight: 22, fontWeight: '600', letterSpacing: -0.064, color: 'rgba(255,255,255,0.7)', flexShrink: 1 },
-  shareBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)', padding: 24 },
   shareCard: { borderRadius: 24, borderCurve: 'continuous', gap: 16, padding: 20, backgroundColor: colors.surface },
   buttonText: { fontFamily, fontSize: 16, lineHeight: 22, fontWeight: '600', letterSpacing: -0.064, color: colors.text },
   status: { paddingVertical: 24, gap: 16, alignItems: 'center' },

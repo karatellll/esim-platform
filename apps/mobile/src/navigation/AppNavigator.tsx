@@ -60,12 +60,12 @@ export function AppNavigator() {
     <Stack.Screen name="Loyalty" component={LoyaltyScreen} />
     <Stack.Screen name="Help" component={HelpScreen} />
     <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
-    <Stack.Screen name="EmailSignIn" component={EmailSignInScreen} options={{ presentation: 'transparentModal', animation: 'fade', contentStyle: { backgroundColor: 'transparent' } }} />
-    <Stack.Screen name="EmailCode" component={EmailCodeScreen} options={{ presentation: 'transparentModal', animation: 'fade', contentStyle: { backgroundColor: 'transparent' } }} />
+    <Stack.Screen name="EmailSignIn" component={EmailSignInScreen} options={{ presentation: 'transparentModal', animation: 'none', contentStyle: { backgroundColor: 'transparent' } }} />
+    <Stack.Screen name="EmailCode" component={EmailCodeScreen} options={{ presentation: 'transparentModal', animation: 'none', contentStyle: { backgroundColor: 'transparent' } }} />
     <Stack.Screen name="WorldTariffs" component={WorldTariffsScreen} />
     <Stack.Screen name="CountryTariffs" component={CountryTariffsScreen} />
     <Stack.Screen name="RegionTariffs" component={RegionTariffsScreen} />
-    <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ presentation: 'transparentModal', animation: 'fade', contentStyle: { backgroundColor: 'transparent' } }} />
+    <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ presentation: 'transparentModal', animation: 'none', contentStyle: { backgroundColor: 'transparent' } }} />
     <Stack.Screen name="OrderStatus" component={OrderStatusScreen} />
     <Stack.Screen name="NotFound" component={NotFoundScreen} />
     <Stack.Screen name="SessionExpired" component={SessionExpiredScreen} options={{ gestureEnabled: false }} />

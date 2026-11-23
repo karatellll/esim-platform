@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Platform, Pressable as NativePressable } from 'react-native';
 import { Pressable, View } from '../ui/Surface';
@@ -6,16 +7,12 @@ import { Text } from '../ui/Text';
 
 import type { CatalogCategory } from '../../../../packages/shared/contracts/catalog';
 import { countLabel, getCountries } from '../catalog/catalog';
-import { preferredRegionPhoto, regionPhoto } from '../catalog/photos';
+import { regionPhoto } from '../catalog/photos';
 import { formatCatalogPrice, getCatalogPrice, getMinimumCatalogPrice } from '../catalog/prices';
 import { getRegionBundle } from '../catalog/regions';
 import { colors } from '../theme';
-import { CatalogPhoto } from './CatalogPhoto';
 import { CountryFlag } from './CountryFlag';
 
-const regionCardPhotos: Record<string, number> = {
-  'азия': require('../../assets/regions/asia.png'),
-};
 // Use native corner clipping for photos on iOS.
 const RegionCard = Platform.OS === 'ios' ? NativePressable : Pressable;
 
@@ -27,7 +24,10 @@ export function CatalogRegions({ categories, onSelectCategory }: {
   onSelectCategory: (category: CatalogCategory) => void;
 }) {
   if (categories.length === 0) return <Text style={styles.empty} testID="catalog-empty">Регионы пока недоступны.</Text>;
-  const ordered = categories.filter(category => category.title.trim().toLocaleLowerCase('ru') !== 'популярное').sort((a, b) => {
+  const ordered = categories.filter(category => {
+    const title = category.title.trim().toLocaleLowerCase('ru');
+    return title !== 'популярное' && title !== 'весь мир';
+  }).sort((a, b) => {
     const aIndex = designOrder.indexOf(a.title.trim().toLocaleLowerCase('ru'));
     const bIndex = designOrder.indexOf(b.title.trim().toLocaleLowerCase('ru'));
     return (aIndex < 0 ? designOrder.length : aIndex) - (bIndex < 0 ? designOrder.length : bIndex);
@@ -40,20 +40,18 @@ export function CatalogRegions({ categories, onSelectCategory }: {
         const key = category.title.trim().toLocaleLowerCase('ru');
         const countries = getCountries([category]);
         const bundle = getRegionBundle(category);
-        const preferredPhoto = preferredRegionPhoto(category.title);
-        const fallback = preferredPhoto ?? regionCardPhotos[key] ?? regionPhoto(category.title);
         const preferred = (preferredFlags[key] ?? []).flatMap((code) => countries.filter((country) => country.country_iso2?.toUpperCase() === code));
         const flags = [...preferred, ...countries.filter((country) => !preferred.some((flag) => flag.id === country.id))].slice(0, key === 'азия' ? 3 : 4);
         return (
           <RegionCard key={`${category.title}-${index}`} onPress={() => onSelectCategory(category)} accessibilityRole="button" accessibilityLabel={`Открыть категорию: ${category.title}`} style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]} testID={`region-${category.title}`}>
-            <CatalogPhoto url={preferredPhoto ? undefined : bundle?.photo_url} fallback={fallback} style={StyleSheet.absoluteFill} />
+            <Image source={regionPhoto(category.title)} style={StyleSheet.absoluteFill} contentFit="cover" accessible={false} />
             <LinearGradient colors={['rgba(0,0,0,0.85)', 'rgba(0,0,0,0.2)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} />
             <Text style={styles.title} numberOfLines={1}>{category.title}</Text>
             <Text style={styles.subtitle}>{countLabel(countries.length)}</Text>
             <View style={styles.flags}>
               {flags.map((country, flagIndex) => (
                 <View key={country.id} style={{ marginRight: flagIndex < flags.length - 1 ? -8 : 0, zIndex: flags.length - flagIndex }}>
-                  <CountryFlag key={`${country.id}-${country.image_url}`} country={country} size={26} borderWidth={2} />
+                  <CountryFlag key={`${country.id}-${country.image_url}`} country={country} size={26} borderWidth={1} borderColor={colors.catalogFlagStroke} />
                 </View>
               ))}
             </View>
@@ -70,11 +68,11 @@ export function CatalogRegions({ categories, onSelectCategory }: {
 const fontFamily = fonts.text;
 const styles = StyleSheet.create({
   regions: { gap: 12 },
-  card: { height: 120, borderRadius: 24, borderCurve: 'continuous', overflow: 'hidden', backgroundColor: colors.surface },
+  card: { width: '100%', height: 150, borderRadius: 24, borderCurve: 'continuous', overflow: 'hidden', backgroundColor: colors.surface },
   title: { position: 'absolute', top: 16, left: 16, right: 16, fontFamily, fontSize: 22, lineHeight: 28, fontWeight: '900', letterSpacing: -0.44, color: colors.text },
   subtitle: { position: 'absolute', top: 46, left: 16, fontFamily, fontSize: 13, lineHeight: 19, letterSpacing: -0.052, color: colors.text, opacity: 0.75 },
-  flags: { position: 'absolute', top: 80, left: 16, flexDirection: 'row', isolation: 'isolate' },
-  price: { position: 'absolute', top: 82, right: 16, minWidth: 77, height: 24, paddingHorizontal: 10, borderRadius: 12, borderCurve: 'continuous', backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' },
+  flags: { position: 'absolute', bottom: 16, left: 16, flexDirection: 'row', isolation: 'isolate' },
+  price: { position: 'absolute', bottom: 17, right: 16, minWidth: 77, height: 24, paddingHorizontal: 10, borderRadius: 12, borderCurve: 'continuous', backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' },
   priceText: { fontFamily, fontSize: 13, lineHeight: 16, fontWeight: '700', letterSpacing: -0.052, color: colors.ink },
   empty: { fontSize: 14, lineHeight: 20, color: colors.mutedText, textAlign: 'center', paddingVertical: 20 },
 });

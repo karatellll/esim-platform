@@ -94,7 +94,7 @@ export function MyEsimsPreview() {
       </View>
       <View style={{ flex: 1 }}>
         <View style={[StyleSheet.absoluteFill, !!order && styles.hidden]}>
-          <MyEsimsLayout populated onAdd={catalog}>
+          <MyEsimsLayout populated>
             {insets => <PurchasedOrders {...insets} orders={orders} countries={countries} onSelect={open} />}
           </MyEsimsLayout>
         </View>

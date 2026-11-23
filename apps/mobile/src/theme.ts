@@ -8,6 +8,7 @@ export const colors = {
   selectedFloatingTab: '#38383C',
   accent: '#808FFF',
   tariffAccent: '#4D5CFF',
+  catalogFlagStroke: 'rgba(255,255,255,0.3)',
   mutedText: 'rgba(255, 255, 255, 0.5)',
   text: '#FFFFFF',
   ink: '#0A0A0D',

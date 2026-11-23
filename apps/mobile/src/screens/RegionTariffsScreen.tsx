@@ -1,12 +1,13 @@
+import { SwipeDialog } from '../components/SwipeDialog';
 import { GlassActionButton } from '../components/GlassActionButton';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { preferredRegionPhoto, regionPhoto } from '../catalog/photos';
+import { regionPhoto } from '../catalog/photos';
 import { recommendTariff, tariffGigabytes } from '../home/recommendation';
 import { formatCatalogPrice } from '../catalog/prices';
 import { useState } from 'react';
-import { Modal, Platform, Share, useWindowDimensions } from 'react-native';
+import { Platform, Share, useWindowDimensions } from 'react-native';
 import { ScrollView } from '../ui/ScrollView';
 import { Pressable, View } from '../ui/Surface';
 import { fonts, StyleSheet } from '../ui/design';
@@ -17,7 +18,6 @@ import { countLabel, getCountries } from '../catalog/catalog';
 import { getRegionBundle, getRegionHeadingPrefix, orderRegionCountries, regionBundleName } from '../catalog/regions';
 import { LoadFailure, ServiceState } from '../components/ServiceState';
 import { useOnline } from '../service/connectivity';
-import { CatalogPhoto } from '../components/CatalogPhoto';
 import { CountryFlag } from '../components/CountryFlag';
 import { CatalogCountrySheet } from '../components/CatalogCountrySheet';
 import { useCatalogTariffs } from '../hooks/useCatalogTariffs';
@@ -48,9 +48,6 @@ export function RegionTariffsScreen({ route, navigation }: Props) {
   const [tariffSelection, setTariffSelection] = useState<string | null>(null);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const data = catalog.state.status === 'ready' && catalog.state.data.esim.id === bundle?.id ? catalog.state.data : null;
-  const preferredPhoto = preferredRegionPhoto(category.title);
-  const photoUrl = preferredPhoto ? undefined : data?.esim.photo_url?.trim() || bundle?.photo_url;
-  const fallbackPhoto = preferredPhoto ?? regionPhoto(category.title);
   const tariffs = data?.tariffs ?? [];
   const durations = getDurations(tariffs);
   const recommended = recommendTariff(tariffs, route.params);
@@ -83,7 +80,7 @@ export function RegionTariffsScreen({ route, navigation }: Props) {
   return <View style={styles.screen} testID="screen-region-tariffs">
     <ScrollView style={styles.scroll} contentInsetAdjustmentBehavior="never" contentContainerStyle={[styles.content, { paddingTop: topInset + 8, paddingBottom: selected ? bottomPadding + 92 : bottomPadding + 20 }]}>
       <View style={styles.heroPhoto} pointerEvents="none">
-        <CatalogPhoto url={photoUrl} fallback={fallbackPhoto} style={StyleSheet.absoluteFill} />
+        <Image source={regionPhoto(category.title)} style={StyleSheet.absoluteFill} contentFit="cover" accessible={false} />
         <LinearGradient colors={['rgba(20,20,22,0.55)', 'rgba(20,20,22,0)', 'rgba(20,20,22,0.35)', colors.background]} locations={[0, 0.3, 0.62, 1]} style={StyleSheet.absoluteFill} />
       </View>
       <View style={styles.navbar}>
@@ -151,17 +148,10 @@ export function RegionTariffsScreen({ route, navigation }: Props) {
       buyTestID="region-buy"
     />}
     {overlay?.type === 'countries' && <CatalogCountrySheet countries={countries} title={countLabel(countries.length)} subtitle={`Направления категории «${category.title}»`} onClose={() => setOverlay(null)} onSelectCountry={country => navigation.navigate('CountryTariffs', { country })} onSupport={() => navigation.navigate('Help')} testID="region-country-sheet" />}
-    <Modal visible={overlay?.type === 'notice'} transparent animationType="fade" onRequestClose={() => setOverlay(null)}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard} accessibilityViewIsModal>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{overlay?.type === 'notice' ? overlay.title : ''}</Text>
-            <Pressable onPress={() => setOverlay(null)} accessibilityRole="button" accessibilityLabel="Закрыть" testID="region-modal-close"><Text style={styles.closeText}>Закрыть</Text></Pressable>
-          </View>
-          <Text style={styles.noticeText} selectable>{overlay?.type === 'notice' ? overlay.message : ''}</Text>
-        </View>
-      </View>
-    </Modal>
+    {overlay?.type === 'notice' && <SwipeDialog style={styles.modalCard} onClose={() => setOverlay(null)} padding={20}
+      title={<Text style={styles.modalTitle} accessibilityRole="header">{overlay.title}</Text>} closeTestID="region-modal-close">
+      <Text style={styles.noticeText} selectable>{overlay.message}</Text>
+    </SwipeDialog>}
   </View>;
 }
 
@@ -200,10 +190,7 @@ const styles = StyleSheet.create({
   status: { paddingVertical: 24, gap: 16, alignItems: 'center' },
   statusText: { fontFamily, fontSize: 14, lineHeight: 20, color: colors.mutedText, textAlign: 'center' },
   pressed: { opacity: 0.8 },
-  modalBackdrop: { flex: 1, padding: 20, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center' },
   modalCard: { width: '100%', maxWidth: 520, maxHeight: '80%', padding: 20, gap: 20, borderRadius: 24, borderCurve: 'continuous', backgroundColor: colors.surface },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  modalTitle: { fontFamily: displayFont, fontSize: 22, lineHeight: 28, fontWeight: '900', color: colors.text, flex: 1 },
-  closeText: { fontFamily, fontSize: 14, lineHeight: 20, fontWeight: '600', color: colors.accent, paddingVertical: 8 },
+  modalTitle: { fontFamily: displayFont, fontSize: 22, lineHeight: 28, fontWeight: '900', color: colors.text },
   noticeText: { fontFamily, fontSize: 16, lineHeight: 24, color: colors.text },
 });

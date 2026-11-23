@@ -1,10 +1,11 @@
+import { SwipeDialog } from '../components/SwipeDialog';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthProvider';
 import type { RootStackParamList } from '../navigation/stack';
 import { Image, type ImageSource } from 'expo-image';
 import { useState } from 'react';
-import { Modal, Platform, useWindowDimensions } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 import { ScrollView } from '../ui/ScrollView';
 import { Pressable, View } from '../ui/Surface';
 import { fonts, StyleSheet } from '../ui/design';
@@ -86,15 +87,11 @@ export function ProfileGuestScreen() {
       </View>
       <Text style={styles.version} testID="profile-version">Версия {version}</Text>
     </ScrollView>
-    <Modal visible={notice !== null} transparent animationType="fade" onRequestClose={() => setNotice(null)}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard} accessibilityViewIsModal>
-          <Text style={styles.cardTitle}>{notice?.title}</Text>
-          <Text style={styles.noticeText}>{notice?.message}</Text>
-          <Pressable accessibilityRole="button" testID="profile-notice-close" onPress={() => setNotice(null)} style={({ pressed }) => [styles.close, pressed && styles.pressed]}><Text style={styles.closeText}>Понятно</Text></Pressable>
-        </View>
-      </View>
-    </Modal>
+    {notice !== null && <SwipeDialog style={styles.modalCard} onClose={() => setNotice(null)}
+      title={<Text style={[styles.cardTitle, styles.noticeTitle]} accessibilityRole="header">{notice.title}</Text>}>
+      <Text style={styles.noticeText}>{notice.message}</Text>
+      <Pressable accessibilityRole="button" testID="profile-notice-close" onPress={() => setNotice(null)} style={({ pressed }) => [styles.close, pressed && styles.pressed]}><Text style={styles.closeText}>Понятно</Text></Pressable>
+    </SwipeDialog>}
   </View>;
 }
 
@@ -116,6 +113,7 @@ const styles = StyleSheet.create({
   signInText: { height: 22, fontFamily, fontSize: 16, lineHeight: 22, letterSpacing: -0.064, fontWeight: '600', color: colors.ink, includeFontPadding: false },
   card: { height: 174, padding: 16, borderRadius: 24, borderCurve: 'continuous', backgroundColor: colors.surface, gap: 2 },
   cardTitle: { height: 25, fontFamily: displayFont, fontSize: 20, lineHeight: 25, letterSpacing: -0.4, fontWeight: '900', color: colors.text, includeFontPadding: false },
+  noticeTitle: { height: 'auto' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, height: 56 },
   divider: { height: 57, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
   iconSlot: { width: 40, height: 40, borderRadius: 12, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
@@ -124,7 +122,6 @@ const styles = StyleSheet.create({
   detail: { width: 32, height: 20, fontFamily, fontSize: 14, lineHeight: 20, letterSpacing: -0.056, fontWeight: '600', color: 'rgba(255,255,255,0.6)', includeFontPadding: false },
   version: { height: 18, textAlign: 'center', fontFamily, fontSize: 12, lineHeight: 18, letterSpacing: -0.048, color: 'rgba(255,255,255,0.3)', includeFontPadding: false },
   pressed: { opacity: 0.8 },
-  modalBackdrop: { flex: 1, padding: 24, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center' },
   modalCard: { width: '100%', maxWidth: 400, padding: 24, borderRadius: 24, borderCurve: 'continuous', gap: 20, backgroundColor: colors.surface },
   noticeText: { fontFamily, fontSize: 16, lineHeight: 22, color: colors.text },
   close: { minHeight: 48, padding: 12, borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.tariffAccent, alignItems: 'center', justifyContent: 'center' },

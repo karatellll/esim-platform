@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { ScrollView } from '../ui/ScrollView';
-import { Pressable, View } from '../ui/Surface';
+import { AnimatedView, Pressable, View } from '../ui/Surface';
 import { fonts, StyleSheet } from '../ui/design';
 import { Text, TextInput } from '../ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +16,8 @@ import { useAuth } from '../auth/AuthProvider';
 import { PriceCheckFailure } from '../components/ServiceState';
 import { useOnline } from '../service/connectivity';
 import { CountryFlag } from '../components/CountryFlag';
+import { GlassActionButton } from '../components/GlassActionButton';
+import { modalDragStyle, useModalSwipe } from '../hooks/useModalSwipe';
 import { PromoCodeSheet } from '../components/PromoCodeSheet';
 import { formatCatalogPrice } from '../catalog/prices';
 import type { RootStackParamList } from '../navigation/stack';
@@ -23,10 +25,9 @@ import { formatDataAmount, formatDuration, formatTariffPrice } from '../tariffs/
 import { colors } from '../theme';
 
 const assets = {
-  close: require('../../assets/checkout/close.svg'),
   person: require('../../assets/checkout/person.svg'),
   sbp: require('../../assets/checkout/sbp.svg'),
-  mir: require('../../assets/checkout/mir.svg'),
+  card: require('../../assets/checkout/card.svg'),
   gift: require('../../assets/checkout/promo-ticket.svg'),
   chevron: require('../../assets/checkout/chevron.svg'),
   heading: require('../../assets/checkout/heading.svg'),
@@ -110,6 +111,8 @@ export function CheckoutScreen({ route, navigation }: Props) {
 
   const close = () => { if (!submitting.current) { Keyboard.dismiss(); navigation.goBack(); } };
 
+  const swipe = useModalSwipe(close, { canDismiss: () => !submitting.current && !promoOpen });
+
   const applyPromo = async (code: string, signal: AbortSignal) => {
     const response = await getCheckoutSummary({ esim_id: selectionCountry.id, tariff_id: selectionTariff.id, promo_code: code }, signal, auth.accessToken);
     if (signal.aborted) return;
@@ -179,20 +182,19 @@ export function CheckoutScreen({ route, navigation }: Props) {
   const disabled = !online || busy || summaryBusy || auth.loading || wait > 0 || promoOpen;
   const paymentMethods = [
     { id: 'sbp' as const, title: 'СБП', description: 'Подтвердите в приложении банка', icon: assets.sbp },
-    { id: 'card' as const, title: 'Карта', description: 'Банковская карта', icon: assets.mir },
+    { id: 'card' as const, title: 'Карта', description: 'Банковская карта', icon: assets.card },
   ];
 
   return <View style={styles.screen} testID="screen-checkout">
-    <Pressable style={styles.backdrop} onPress={close} accessibilityRole="button" accessibilityLabel="Закрыть оформление" testID="checkout-backdrop" />
+    <AnimatedView pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdrop, swipe.backdropStyle]} />
+    <Pressable style={StyleSheet.absoluteFill} onPress={close} accessibilityRole="button" accessibilityLabel="Закрыть оформление" testID="checkout-backdrop" />
     <KeyboardAvoidingView style={[styles.bottom, { paddingTop: topClearance }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined} pointerEvents="box-none" accessibilityElementsHidden={promoOpen} importantForAccessibility={promoOpen ? 'no-hide-descendants' : 'auto'}>
-      <View style={[styles.sheet, { height: headerHeight + bodyHeight + footerGap + submitHeight + footerBottom }]} accessibilityViewIsModal testID="checkout-sheet">
-        <View style={styles.header}>
+      <AnimatedView onLayout={swipe.onLayout} style={[styles.sheet, swipe.panelStyle, { height: headerHeight + bodyHeight + footerGap + submitHeight + footerBottom }]} accessibilityViewIsModal testID="checkout-sheet">
+        <View {...swipe.panHandlers} style={[styles.header, modalDragStyle]}>
           <View style={styles.titleSlot} accessibilityRole="header" accessibilityLabel="Оформление"><Image source={assets.heading} style={styles.title} contentFit="contain" accessible={false} /></View>
-          <Pressable onPress={close} disabled={busy} accessibilityRole="button" accessibilityLabel="Закрыть оформление" testID="checkout-close" style={styles.close}>
-            <Image source={assets.close} style={styles.icon} contentFit="contain" accessible={false} />
-          </Pressable>
+          <GlassActionButton action="close" onPress={close} disabled={busy} accessibilityLabel="Закрыть оформление" testID="checkout-close" />
         </View>
-        <ScrollView ref={scroll} style={styles.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never"
+        <ScrollView {...swipe.scrollProps} ref={scroll} style={styles.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never"
           onContentSizeChange={(_, nextHeight) => setBodyHeight(previous => Math.abs(previous - nextHeight) > 0.5 ? nextHeight : previous)}
           contentContainerStyle={styles.content} testID="checkout-scroll">
           <View style={styles.order} testID="checkout-selection">
@@ -245,7 +247,7 @@ export function CheckoutScreen({ route, navigation }: Props) {
           </Pressable>
         </View>
         <View style={styles.handle} pointerEvents="none" />
-      </View>
+      </AnimatedView>
     </KeyboardAvoidingView>
     {promoOpen && <PromoCodeSheet onClose={() => setPromoOpen(false)} onApply={applyPromo} />}
   </View>;
@@ -254,7 +256,7 @@ export function CheckoutScreen({ route, navigation }: Props) {
 const fontFamily = fonts.text;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: 'transparent' },
-  backdrop: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' },
+  backdrop: { backgroundColor: 'rgba(0,0,0,0.6)' },
   bottom: { flex: 1, justifyContent: 'flex-end' },
   sheet: { width: '100%', flexShrink: 1, backgroundColor: '#1C1C1F', borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden' },
   body: { flex: 1 },
@@ -264,7 +266,6 @@ const styles = StyleSheet.create({
   header: { height: headerHeight, flexShrink: 0, paddingTop: 28, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center' },
   titleSlot: { flex: 1, height: 30 },
   title: { position: 'absolute', left: 0, top: 7.09, width: 153, height: 22 },
-  close: { width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous', backgroundColor: colors.selectedTab, alignItems: 'center', justifyContent: 'center' },
   icon: { width: 20, height: 20 },
   order: { minHeight: 65, paddingLeft: 12, paddingRight: 14, paddingVertical: 12, borderRadius: 20, borderCurve: 'continuous', backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 12 },
   orderCopy: { flex: 1, minWidth: 0 },

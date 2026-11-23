@@ -11,16 +11,36 @@ const require = createRequire(import.meta.url), root = path.resolve(import.meta.
 const country = { id: 'tr', country_iso2: 'TR', display_name: 'Турция', image_url: null, min_price_amount: 290, min_price_currency: 'RUB' };
 const tariff = { id: '5gb', display_name: '5 ГБ', price_amount_minor: 890, price_currency: 'RUB', data_amount: { amount: 5, unit: 'GB' }, duration: { amount: 15, unit: 'day' }, is_unlimited: false, is_profitable_badge: false };
 const base = { country, tariff, amount: 890, currency: 'RUB', price_source: 'provider', ordering_available: true, quote_id: 'quote', expires_at: null, existing_order_id: null, promotion: null };
+const modalOpening = [{ toValue: 0, duration: 300 }, { toValue: 1, duration: 230 }];
+
+function assertGlassClose(button) {
+  assert.equal(button.findByType('TabBarMaterial').props.borderRadius, 20);
+  assert.equal(button.findByType('Image').props.source, '../../assets/checkout/close.svg');
+}
 
 function app({ summary = async () => ({ data: base }), create = async () => ({ data: { id: 'order' } }), tariffsByEsim = {}, categories = [], signedIn = true, platform = 'web', orders = [] } = {}) {
   const cache = new Map(), calls = [], navigations = [];
+  const animations = [], scrollCalls = [];
   const keyboardEvents = new Map();
   const host = type => React.forwardRef((props, ref) => React.createElement(type, { ...props, ref, ...(typeof props.style === 'function' ? { style: props.style({ pressed: false }) } : {}) }, props.children));
   const View = host('View'), Pressable = host('Pressable'), Input = host('Input');
   const flatten = s => Array.isArray(s) ? Object.assign({}, ...s.filter(Boolean).map(flatten)) : s ?? {};
   const stylesheet = { create: s => s, flatten, absoluteFill: { position: 'absolute', inset: 0 } };
+  const Animated = {
+    Value: class {
+      constructor(value) { this.value = value; }
+      setValue(value) { this.value = value; }
+      stopAnimation() {}
+    },
+    timing: (value, { toValue, duration }) => ({
+      start(done) { animations.push({ toValue, duration }); value.setValue(toValue); done?.({ finished: true }); },
+    }),
+  };
   const mocks = {
-    'react-native': { ActivityIndicator: 'ActivityIndicator', View: host('NativeView'), Pressable: host('NativePressable'), Keyboard: {
+    'react-native': { ActivityIndicator: 'ActivityIndicator', View: host('NativeView'), Pressable: host('NativePressable'), Animated,
+      Easing: { out: easing => easing, cubic: x => x ** 3 },
+      PanResponder: { create: panHandlers => ({ panHandlers }) },
+      Keyboard: {
       dismiss() {}, isVisible: () => false,
       addListener(event, listener) { keyboardEvents.set(event, listener); return { remove: () => keyboardEvents.delete(event) }; },
     }, KeyboardAvoidingView: 'KeyboardAvoidingView', Modal: p => p.visible ? React.createElement('Modal', p, p.children) : null, Platform: { OS: platform }, useWindowDimensions: () => ({ width: 375, height: 812 }) },
@@ -30,7 +50,7 @@ function app({ summary = async () => ({ data: base }), create = async () => ({ d
     '@react-native-safe-area-context': {},
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 48, bottom: 34, left: 0, right: 0 }) },
     '@react-navigation/native': { useFocusEffect: f => React.useEffect(f, [f]), useNavigation: () => navigation, useRoute: () => ({}) },
-    '/ui/Surface': { View, Pressable }, '/ui/ScrollView': { ScrollView: host('ScrollView') },
+    '/ui/Surface': { View, Pressable, AnimatedView: View }, '/ui/ScrollView': { ScrollView: host('ScrollView') },
     '/ui/design': { StyleSheet: stylesheet, fonts: { text: 'System', display: 'System' } },
     '/ui/Text': { Text: 'Text', TextInput: Input },
     '/components/CountryFlag': { CountryFlag: 'CountryFlag' },
@@ -39,7 +59,9 @@ function app({ summary = async () => ({ data: base }), create = async () => ({ d
     './Skeleton': { SkeletonBlock: 'SkeletonBlock', SkeletonGroup: 'SkeletonGroup' },
     '/components/SkeletonLayouts': { TariffSkeleton: 'TariffSkeleton' },
     '/hooks/useCatalogCategories': { useCatalogCategories: () => ({ state: { status: 'ready', categories } }) },
-    '/hooks/useCatalogTariffs': { useCatalogTariffs: id => ({ state: { status: 'ready', data: tariffsByEsim[id] } }) },
+    '/hooks/useCatalogTariffs': { useCatalogTariffs: id => ({
+      state: tariffsByEsim[id] === null ? { status: 'loading' } : { status: 'ready', data: tariffsByEsim[id] },
+    }) },
     '/hooks/useSkeletonGate': { useSkeletonGate: () => ({ visible: false, timedOut: false }) },
     '/hooks/useUserOrders': { useUserOrders: () => ({ state: { status: 'ready', dates: {}, response: {
       data: orders, meta: { has_more: false, next_cursor: null },
@@ -69,17 +91,37 @@ function app({ summary = async () => ({ data: base }), create = async () => ({ d
     const Component = load(root + file)[path.basename(file, '.tsx')];
     let renderer;
     await act(async () => {
-      renderer = TestRenderer.create(React.createElement(Component, props), { createNodeMock: () => ({ focus() {}, scrollTo() {} }) });
+      renderer = TestRenderer.create(React.createElement(Component, props), {
+        createNodeMock: () => ({ focus() {}, scrollTo: options => scrollCalls.push(options) }),
+      });
     });
     return renderer;
   };
-  return { mount, calls, navigations, props, node, keyboardEvents };
+  return { mount, calls, navigations, props, node, keyboardEvents, animations, scrollCalls };
 }
+
+test('both authorization sheets close with the glass cross', async () => {
+  const a = app({ platform: 'ios' });
+  let closed = 0;
+  for (const variant of ['email', 'code']) {
+    const screen = await a.mount('/components/AuthLayout.tsx', { variant, onBack() { closed++; }, subtitle: '' });
+    const close = a.node(screen, 'auth-back', 'Pressable');
+    assertGlassClose(close);
+    await act(() => close.props.onPress());
+    await act(() => screen.unmount());
+  }
+  assert.equal(closed, 2);
+});
 
 test('checkout anchors its header and pay button and shows invalid email beside the field', async () => {
   const a = app({ signedIn: false, platform: 'ios' });
   const renderer = await a.mount('/screens/CheckoutScreen.tsx', a.props);
   const node = (id, type) => a.node(renderer, id, type);
+  const sheet = node('checkout-sheet', 'View');
+  assertGlassClose(node('checkout-close', 'Pressable'));
+  await act(() => sheet.props.onLayout({ nativeEvent: { layout: { height: 700, y: 112 } } }));
+  await act(() => sheet.props.onLayout({ nativeEvent: { layout: { height: 680, y: 132 } } }));
+  assert.deepEqual(a.animations, modalOpening);
   const avoiding = renderer.root.findByType('KeyboardAvoidingView');
   assert.equal(avoiding.props.style.at(-1).paddingTop, 56);
   assert.equal(avoiding.props.behavior, 'padding');
@@ -151,6 +193,14 @@ test('the countries catalog opens trip search, shows rectangular flags and links
   assert.equal(worldButton('world-share').findByType('TabBarMaterial').props.borderRadius, 20);
   await act(async () => worldButton('world-share').props.onPress());
   assert.ok(worldScreen.root.findAllByType('Text').some(text => String(text.props.children).startsWith('Весь мир — 5 ГБ')));
+  const shareDialog = worldScreen.root.findByType('Modal');
+  assert.equal(shareDialog.props.animationType, 'none');
+  await act(() => shareDialog.props.onShow());
+  assert.deepEqual(a.animations, modalOpening);
+  const shareClose = shareDialog.findAllByType('Pressable').find(button => button.props.accessibilityLabel === 'Закрыть');
+  assertGlassClose(shareClose);
+  await act(() => shareClose.props.onPress());
+  assert.equal(worldScreen.root.findAllByType('Modal').length, 0);
   await act(() => worldButton('world-buy').props.onPress());
   assert.deepEqual(a.navigations.at(-1), ['Checkout', { country: world, tariff }]);
   await act(() => worldButton('world-back').props.onPress());
@@ -162,84 +212,117 @@ test('the countries catalog opens trip search, shows rectangular flags and links
   assert.deepEqual(a.navigations.at(-1), ['TripSearch']);
   await act(() => node('catalog-esim-tr').props.onPress());
   assert.deepEqual(a.navigations.at(-1), ['CountryTariffs', { country: turkey }]);
+  const gridBeforeSwitch = node('directions-scroll', 'ScrollView').props.contentContainerStyle;
+  const artworkBeforeSwitch = banner.findAllByType('Image').map(image => image.props.style);
   await act(() => node('category-regions').props.onPress());
-  assert.equal(node('directions-search'), undefined);
-  assert.equal(node('global-esim-button'), undefined);
-  await act(() => node('region-Европа').props.onPress());
+  assert.deepEqual(node('directions-scroll', 'ScrollView').props.contentContainerStyle, gridBeforeSwitch);
+  assert.deepEqual(node('global-esim-button').findAllByType('Image').map(image => image.props.style), artworkBeforeSwitch);
+  assert.deepEqual(a.scrollCalls, []);
+  assert.equal(node('directions-heading-text', 'Text'), undefined);
+  assert.equal(node('directions-search').props.accessibilityLabel, search.props.accessibilityLabel);
+  await act(() => node('directions-search').props.onPress());
+  assert.deepEqual(a.navigations.at(-1), ['TripSearch']);
+  const regionBanner = node('global-esim-button');
+  assert.equal(regionBanner.props.style[0].height, 120);
+  assert.equal(node('region-Весь мир'), undefined);
+  const regionCard = node('region-Европа');
+  assert.equal(regionCard.props.style[0].height, 150);
+  assert.equal(regionCard.props.style[0].width, '100%');
+  const regionalFlag = regionCard.findAllByType('Image').find(image => image.props.source === '../../assets/flags/fr.png');
+  assert.deepEqual(regionalFlag.parent.props.style[1], {
+    width: 26, height: 26, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
+  });
+  await act(() => regionCard.props.onPress());
   assert.deepEqual(a.navigations.at(-1), ['RegionTariffs', { category: region }]);
   await act(() => { worldScreen.unmount(); screen.unmount(); });
 });
 
-test('catalog photos show local images while loading and after a provider image fails', async () => {
-  const photoUrl = 'https://example.com/missing-photo.webp';
-  const algeria = { ...country, id: 'algeria', country_iso2: 'DZ', display_name: 'Алжир', photo_url: photoUrl };
-  const africa = { ...country, id: 'africa', country_iso2: 'XB', display_name: 'Африка (регион)', photo_url: photoUrl };
-  const category = { title: 'Африка', esims: [africa] };
-  const a = app({ tariffsByEsim: {
-    [algeria.id]: { esim: { ...algeria, photo_url: null }, tariffs: [] },
-    [africa.id]: { esim: { ...africa, photo_url: null }, tariffs: [] },
-  } });
-  const { navigation } = a.props;
-  const cases = [
-    ['/screens/CountryTariffsScreen.tsx', { route: { params: { country: algeria } }, navigation }, 'countries/DZ.jpg'],
-    ['/screens/RegionTariffsScreen.tsx', { route: { params: { category } }, navigation }, 'countries/AFRICA.jpg'],
-    ['/components/CatalogRegions.tsx', { categories: [category], onSelectCategory() {} }, 'countries/AFRICA.jpg'],
-  ];
-
-  for (const [screen, props, fallbackFile] of cases) {
-    const renderer = await a.mount(screen, props);
-    const images = () => renderer.root.findAllByType('Image');
-    const remote = images().find(image => image.props.source?.uri === photoUrl);
-    assert.ok(remote, screen);
-    assert.ok(remote.props.placeholder.endsWith(fallbackFile), screen);
-    await act(() => remote.props.onError());
-    assert.ok(images().some(image => typeof image.props.source === 'string' && image.props.source.endsWith(fallbackFile)), screen);
-    assert.ok(images().every(image => image.props.source?.uri !== photoUrl), screen);
-    await act(() => renderer.unmount());
-  }
-});
-
-test('iOS uses bundled photos for Europe and both Americas in the catalog and region tariffs', async () => {
+test('iOS uses the same bundled photo in the catalog and region tariffs before and after loading', async () => {
   const cases = [
     ['Европа', 'Европа', 'XE', 'regions/europe.jpg'],
+    ['Азия', 'Азия', 'XS', 'regions/asia.png'],
+    ['Африка', 'Африка', 'XB', 'countries/AFRICA.jpg'],
     ['Северная Америка', 'Северная Америка', 'XN', 'countries/NORTH_AMERICA.jpg'],
     ['Южная Америка', 'Латинская Америка', 'XL', 'countries/SOUTH_AMERICA.jpg'],
+    ['Балканы', 'Балканы', 'XA', 'photos/earth.jpg'],
   ];
   for (const [title, name, code, file] of cases) {
     const bundle = { ...country, id: code, country_iso2: code, display_name: name, photo_url: 'https://example.com/catalog-photo.webp' };
     const category = { title, esims: [bundle] };
-    const a = app({ platform: 'ios', tariffsByEsim: {
-      [code]: { esim: { ...bundle, photo_url: 'https://example.com/tariffs-photo.webp' }, tariffs: [] },
-    } });
+    const tariffsByEsim = { [code]: null };
+    const a = app({ platform: 'ios', tariffsByEsim });
     const catalog = await a.mount('/components/CatalogRegions.tsx', { categories: [category], onSelectCategory() {} });
-    const tariffs = await a.mount('/screens/RegionTariffsScreen.tsx', { route: { params: { category } }, navigation: a.props.navigation });
+    const props = { route: { params: { category } }, navigation: a.props.navigation };
+    const tariffs = await a.mount('/screens/RegionTariffsScreen.tsx', props);
+    const assertPhoto = view => {
+      const sources = view.findAllByType('Image').map(image => image.props.source);
+      assert.ok(sources.some(source => typeof source === 'string' && source.endsWith(file)), title);
+      assert.ok(sources.every(source => !source?.uri), title);
+    };
     try {
       const card = a.node(catalog, 'region-' + title, 'NativePressable');
       assert.equal(card.props.style[0].overflow, 'hidden');
-      for (const view of [card, tariffs.root]) {
-        const sources = view.findAllByType('Image').map(image => image.props.source);
-        assert.ok(sources.some(source => typeof source === 'string' && source.endsWith(file)), title);
-        assert.ok(sources.every(source => !source?.uri), title);
-      }
+      assertPhoto(card);
+      assertPhoto(tariffs.root);
+      tariffsByEsim[code] = { esim: { ...bundle, photo_url: 'https://example.com/tariffs-photo.webp' }, tariffs: [] };
+      await act(() => tariffs.update(React.createElement(tariffs.root.type, props)));
+      assertPhoto(tariffs.root);
     } finally {
       await act(() => { catalog.unmount(); tariffs.unmount(); });
     }
   }
 });
 
-test('country tariffs show selected local photos even when the provider supplies another photo', async () => {
+test('country tariffs keep the same bundled photo before and after tariffs load', async () => {
   const photoUrl = 'https://example.com/provider-photo.webp';
-  for (const code of ['BY', 'GE', 'KN', 'LC', 'NE']) {
+  for (const code of ['BY', 'DZ', 'GE', 'GH', 'KN', 'LC', 'NE', 'TH', 'TR', 'FM']) {
     const destination = { ...country, id: code, country_iso2: code, photo_url: photoUrl };
-    const a = app({ tariffsByEsim: { [code]: { esim: destination, tariffs: [] } } });
-    const renderer = await a.mount('/screens/CountryTariffsScreen.tsx', {
+    const tariffsByEsim = { [code]: null };
+    const a = app({ platform: 'ios', tariffsByEsim });
+    const props = {
       route: { params: { country: destination } },
       navigation: a.props.navigation,
-    });
-    const sources = renderer.root.findAllByType('Image').map(image => image.props.source);
-    assert.ok(sources.some(source => typeof source === 'string' && source.endsWith(`countries/${code}.jpg`)), code);
-    assert.ok(sources.every(source => source?.uri !== photoUrl), code);
-    await act(() => renderer.unmount());
+    };
+    const renderer = await a.mount('/screens/CountryTariffsScreen.tsx', props);
+    const expectedFile = code === 'TR' ? 'photos/turkey.jpg' : code === 'FM' ? 'photos/earth.jpg' : `countries/${code}.jpg`;
+    const assertPhoto = () => {
+      const sources = renderer.root.findAllByType('Image').map(image => image.props.source);
+      assert.ok(sources.some(source => typeof source === 'string' && source.endsWith(expectedFile)), code);
+      assert.ok(sources.every(source => !source?.uri && !String(source).endsWith('turkey-hero.png')), code);
+    };
+    try {
+      assertPhoto();
+      tariffsByEsim[code] = { esim: destination, tariffs: [] };
+      await act(() => renderer.update(React.createElement(renderer.root.type, props)));
+      assertPhoto();
+    } finally {
+      await act(() => renderer.unmount());
+    }
+  }
+});
+
+test('opening Ghana ignores previously loaded Gibraltar details and keeps the local Ghana photo', async () => {
+  const gibraltarPhoto = 'https://example.com/gibraltar.webp';
+  const ghana = { ...country, id: 'ghana', country_iso2: 'GH', display_name: 'Гана', photo_url: gibraltarPhoto };
+  const gibraltar = { ...country, id: 'gibraltar', country_iso2: 'GI', display_name: 'Гибралтар', photo_url: gibraltarPhoto };
+  const tariffsByEsim = { [ghana.id]: { esim: gibraltar, tariffs: [tariff] } };
+  const a = app({ platform: 'ios', tariffsByEsim });
+  const props = { route: { params: { country: ghana } }, navigation: a.props.navigation };
+  const screen = await a.mount('/screens/CountryTariffsScreen.tsx', props);
+  const checkPhoto = () => {
+    const images = screen.root.findAllByType('Image').map(image => image.props.source);
+    assert.ok(images.some(source => typeof source === 'string' && source.endsWith('countries/GH.jpg')));
+    assert.ok(images.every(source => !source?.uri && !String(source).endsWith('countries/GI.jpg')));
+  };
+  try {
+    checkPhoto();
+    assert.equal(a.node(screen, 'tariff-5gb', 'Pressable'), undefined);
+    tariffsByEsim[ghana.id] = { esim: ghana, tariffs: [tariff] };
+    await act(() => screen.update(React.createElement(screen.root.type, props)));
+    checkPhoto();
+    assert.ok(a.node(screen, 'tariff-5gb', 'Pressable'));
+  } finally {
+    await act(() => screen.unmount());
   }
 });
 
@@ -335,7 +418,7 @@ test('a rejected promotion keeps the price and returning to checkout still allow
   assert.equal(a.calls[1].promo_code, 'SUMMER');
   assert.match(a.node(r, 'checkout-promo-error', 'Text').props.children, /недоступны/);
   const promoBack = a.node(r, 'promo-back', 'Pressable');
-  assert.equal(promoBack.findByType('TabBarMaterial').props.borderRadius, 20);
+  assertGlassClose(promoBack);
   await act(() => promoBack.props.onPress());
   assert.equal(a.node(r, 'checkout-promo-error', 'Text'), undefined);
   assert.match(a.node(r, 'checkout-price', 'Text').props.children, /890/);
@@ -362,15 +445,20 @@ test('only a confirmed summary can show the applied state; removal reloads the f
   await act(() => r.unmount());
 });
 
-test('closing a pending promotion aborts it and ignores its eventual reply', async () => {
+test('swiping away a pending promotion aborts it and ignores its eventual reply', async () => {
   let signal, resolve;
-  const a = app(); const r = await a.mount('/components/PromoCodeSheet.tsx', { onClose() {}, onApply: (_, s) => { signal = s; return new Promise(r => resolve = r); } });
+  let closed = 0;
+  const a = app(); const r = await a.mount('/components/PromoCodeSheet.tsx', { onClose() { closed++; }, onApply: (_, s) => { signal = s; return new Promise(r => resolve = r); } });
+  await act(() => r.root.findByType('Modal').props.onShow());
   await act(() => a.node(r, 'checkout-promo-input', 'Input').props.onChangeText('SUMMER'));
   await act(() => a.node(r, 'checkout-promo-apply', 'Pressable').props.onPress());
   assert.equal(a.node(r, 'checkout-promo-apply', 'Pressable').props.disabled, true);
-  await act(() => r.unmount());
+  const drag = a.node(r, 'promo-sheet', 'View').findAllByType('View').find(node => node.props.onPanResponderRelease);
+  await act(() => drag.props.onPanResponderRelease(null, { dy: 110, vy: 0.3 }));
   assert.equal(signal.aborted, true);
   await act(async () => resolve());
+  assert.equal(closed, 1);
+  await act(() => r.unmount());
 });
 
 test('country chips open the searchable list before navigating from a region or the world', async () => {
@@ -429,6 +517,77 @@ test('country sheet paints the search field on mount and searches, clears and op
   await act(() => r.unmount());
 });
 
+test('the country sheet fades a fixed backdrop and closes after a downward swipe', async () => {
+  const a = app();
+  let closed = 0;
+  const r = await a.mount('/components/CatalogCountrySheet.tsx', {
+    countries: [country], title: 'Страны каталога', subtitle: '', onClose: () => { closed++; },
+    onSupport() {}, onSelectCountry() {},
+  });
+  const modal = r.root.findByType('Modal');
+  const sheet = a.node(r, 'catalog-country-sheet', 'View');
+  assertGlassClose(a.node(r, 'catalog-country-sheet-close', 'Pressable'));
+  const drag = a.node(r, 'catalog-country-sheet-drag', 'View').props;
+  const backdrop = modal.findAllByType('View').find(node => node.props.style?.[1]?.backgroundColor === 'rgba(0,0,0,0.6)');
+  const offset = sheet.props.style[1].transform[0].translateY;
+  const opacity = backdrop.props.style[2].opacity;
+  assert.equal(modal.props.animationType, 'none');
+  assert.equal(backdrop.props.style[2].transform, undefined);
+  assert.equal(opacity.value, 0);
+  await act(() => modal.props.onShow());
+  assert.deepEqual(a.animations, modalOpening);
+  assert.equal(offset.value, 0);
+  assert.equal(opacity.value, 1);
+  assert.equal(drag.onMoveShouldSetPanResponderCapture(null, { dx: 30, dy: 15, numberActiveTouches: 1 }), false);
+  assert.equal(drag.onMoveShouldSetPanResponderCapture(null, { dx: 0, dy: 15, numberActiveTouches: 1 }), true);
+  await act(() => drag.onPanResponderGrant());
+  await act(() => drag.onPanResponderMove(null, { dy: 40 }));
+  assert.equal(offset.value, 55);
+  assert.ok(opacity.value < 1);
+  await act(() => drag.onPanResponderRelease(null, { dy: 40, vy: 0.1 }));
+  assert.equal(closed, 0);
+  assert.equal(offset.value, 0);
+  assert.equal(opacity.value, 1);
+  await act(() => drag.onPanResponderRelease(null, { dy: 110, vy: 0.1 }));
+  assert.equal(closed, 1);
+  assert.equal(opacity.value, 0);
+  await act(() => r.unmount());
+});
+
+test('iOS sheets claim header touches and dismiss on a downward pull from the top of their content', async () => {
+  const a = app({ platform: 'ios' });
+  let closed = 0;
+  const screen = await a.mount('/components/CatalogCountrySheet.tsx', {
+    countries: [country], title: 'Страны каталога', subtitle: '', onClose: () => { closed++; },
+    onSupport() {}, onSelectCountry() {},
+  });
+  try {
+    await act(() => screen.root.findByType('Modal').props.onShow());
+    const header = a.node(screen, 'catalog-country-sheet-drag', 'View').props;
+    const touch = { nativeEvent: { touches: [{}] } };
+    assert.equal(header.collapsable, false);
+    assert.equal(header.onStartShouldSetPanResponder(touch), true);
+    await act(() => header.onPanResponderGrant());
+    await act(() => header.onPanResponderRelease(touch, { dx: 125, dy: 100, vy: 0.9 }));
+    assert.equal(closed, 0);
+
+    const scroll = screen.root.findByType('ScrollView').props;
+    const event = y => ({ nativeEvent: { contentOffset: { y }, contentInset: { top: 12 } } });
+    assert.equal(scroll.alwaysBounceVertical, true);
+    await act(() => scroll.onScrollBeginDrag(event(80)));
+    await act(() => scroll.onScrollEndDrag(event(-65)));
+    assert.equal(closed, 0);
+    await act(() => scroll.onScrollBeginDrag(event(-12)));
+    await act(() => scroll.onScrollEndDrag(event(-30)));
+    assert.equal(closed, 0);
+    await act(() => scroll.onScrollBeginDrag(event(-12)));
+    await act(() => scroll.onScrollEndDrag(event(-65)));
+    assert.equal(closed, 1);
+  } finally {
+    await act(() => screen.unmount());
+  }
+});
+
 test('My eSIMs snaps between active cards and routes installation, top-up and trip history to the selected order', async () => {
   const order = (id, name, status, state = 'delivered') => ({
     id, order_number: 1000, state, esim_status: status, esim: { id, name, image: null }, tariff,
@@ -467,8 +626,7 @@ test('My eSIMs snaps between active cards and routes installation, top-up and tr
       assert.deepEqual(a.navigations.at(-1), ['OrderStatus', params]);
     }
     assert.ok(node('my-esims-history-am'));
-    await act(() => node('my-esims-add').props.onPress());
-    assert.deepEqual(a.navigations.at(-1), ['Countries']);
+    assert.equal(node('my-esims-add'), undefined);
   } finally {
     await act(() => screen.unmount());
   }

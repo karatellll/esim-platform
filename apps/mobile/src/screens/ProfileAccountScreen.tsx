@@ -1,8 +1,9 @@
+import { SwipeDialog } from '../components/SwipeDialog';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { Image, type ImageSource } from 'expo-image';
 import { useState } from 'react';
-import { Modal, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { ScrollView } from '../ui/ScrollView';
 import { Pressable, View } from '../ui/Surface';
 import { fonts, StyleSheet } from '../ui/design';
@@ -114,13 +115,11 @@ export function ProfileAccountScreen({ user }: { user: AuthUser }) {
       {auth.restoreError && <Pressable onPress={() => void auth.retryRestore().catch(() => {})} accessibilityRole="button" testID="profile-restore-retry"><Text style={styles.noticeText}>{auth.restoreError} Нажмите, чтобы повторить.</Text></Pressable>}
     </ScrollView>
 
-    <Modal visible={notice !== null} transparent animationType="fade" onRequestClose={() => setNotice(null)}>
-      <View style={styles.modalBackdrop}><View style={styles.modalCard} accessibilityViewIsModal>
-        <Text style={styles.cardTitle}>{notice?.title}</Text>
-        <Text style={styles.noticeText}>{notice?.message}</Text>
-        <Pressable onPress={() => setNotice(null)} accessibilityRole="button" testID="profile-notice-close" style={({ pressed }) => [styles.close, pressed && styles.pressed]}><Text style={styles.closeText}>Понятно</Text></Pressable>
-      </View></View>
-    </Modal>
+    {notice !== null && <SwipeDialog style={styles.modalCard} onClose={() => setNotice(null)}
+      title={<Text style={styles.cardTitle} accessibilityRole="header">{notice.title}</Text>}>
+      <Text style={styles.noticeText}>{notice.message}</Text>
+      <Pressable onPress={() => setNotice(null)} accessibilityRole="button" testID="profile-notice-close" style={({ pressed }) => [styles.close, pressed && styles.pressed]}><Text style={styles.closeText}>Понятно</Text></Pressable>
+    </SwipeDialog>}
   </View>;
 }
 
@@ -153,7 +152,6 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.8 },
   signOut: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.surface },
   signOutText: { fontFamily, fontSize: 16, lineHeight: 22, color: colors.mutedText },
-  modalBackdrop: { flex: 1, padding: 24, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center' },
   modalCard: { width: '100%', maxWidth: 400, padding: 24, borderRadius: 24, borderCurve: 'continuous', gap: 20, backgroundColor: colors.surface },
   noticeText: { fontFamily, fontSize: 16, lineHeight: 22, color: colors.text },
   close: { minHeight: 48, padding: 12, borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },

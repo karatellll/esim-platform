@@ -1,10 +1,11 @@
 import { GlassActionButton } from './GlassActionButton';
+import { modalDragStyle, useModalSwipe } from '../hooks/useModalSwipe';
 import { Image } from 'expo-image';
 import { useOnline } from '../service/connectivity';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, Linking, Platform, useWindowDimensions } from 'react-native';
 import { ScrollView } from '../ui/ScrollView';
-import { Pressable, View } from '../ui/Surface';
+import { AnimatedView, Pressable, View } from '../ui/Surface';
 import { fonts, StyleSheet } from '../ui/design';
 import { Text } from '../ui/Text';
 import type { OrderData } from '../../../../packages/shared/contracts/checkout';
@@ -15,7 +16,6 @@ import { colors } from '../theme';
 const assets = {
   heading: require('../../assets/installation/install-heading.svg'),
   phone: require('../../assets/installation/phone.svg'),
-  close: require('../../assets/checkout/close.svg'),
   qr: require('../../assets/installation/qr.svg'),
 };
 const methods = [{ id: 'quick', label: 'Быстро' }, { id: 'qr', label: 'QR-код' }, { id: 'manual', label: 'Вручную' }] as const;
@@ -85,16 +85,21 @@ export function InstallationSheet({ order, topInset, bottomInset, onClose, onRef
     try { await Linking.openURL(quickUrl); }
     catch { setFailure('Не удалось открыть установку. Попробуйте QR-код или ручной способ.'); }
   };
+  const swipe = useModalSwipe(onClose);
   const waiting = <View style={styles.waiting}><Text style={styles.muted}>Данные установки ещё готовятся.</Text><Pressable onPress={onRefresh} disabled={!online || refreshing} accessibilityRole="button" testID="installation-refresh"><Text style={styles.link}>{refreshing ? 'Обновляем…' : 'Обновить данные'}</Text></Pressable></View>;
 
   return <View style={styles.overlay} testID="installation-overlay" accessibilityViewIsModal>
-    <Pressable onPress={onClose} style={styles.backdrop} accessibilityRole="button" accessibilityLabel="Закрыть установку" />
-    <View style={[styles.sheet, { height: Math.min(594, height - Math.max(topInset + 8, 54)) }]} testID="installation-sheet">
-      <ScrollView showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never" contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}>
+    <AnimatedView pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdrop, swipe.backdropStyle]} />
+    <Pressable onPress={onClose} style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel="Закрыть установку" />
+    <AnimatedView onLayout={swipe.onLayout} style={[styles.sheet, swipe.panelStyle, { height: Math.min(594, height - Math.max(topInset + 8, 54)) }]} testID="installation-sheet">
+      <View {...swipe.panHandlers} style={[styles.dragArea, modalDragStyle]}>
+        <View style={styles.handle} pointerEvents="none" />
         <View style={styles.header}>
           <View style={styles.headingSlot} accessibilityRole="header" accessibilityLabel="Установить eSIM"><Image source={assets.heading} style={styles.heading} contentFit="contain" accessible={false} /></View>
-          <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Закрыть установку" style={styles.close} testID="installation-close"><Image source={assets.close} style={styles.icon} contentFit="contain" accessible={false} /></Pressable>
+          <GlassActionButton action="close" onPress={onClose} accessibilityLabel="Закрыть установку" testID="installation-close" />
         </View>
+      </View>
+      <ScrollView {...swipe.scrollProps} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never" contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}>
         <View style={styles.tabs} accessibilityRole="tablist">
           {methods.map(item => <Pressable key={item.id} onPress={() => { setMethod(item.id); setFailure(null); setFeedback(null); setInstruction(false); }} style={[styles.tab, method === item.id && styles.selectedTab]} accessibilityRole="tab" accessibilityState={{ selected: method === item.id }} testID={`installation-tab-${item.id}`}>
             <Text style={[styles.tabText, method === item.id && styles.selectedText]}>{item.label}</Text>
@@ -140,22 +145,21 @@ export function InstallationSheet({ order, topInset, bottomInset, onClose, onRef
         {instruction && <View style={styles.instructions}><Text style={styles.instructionTitle}>Как установить eSIM</Text><Text style={styles.instructionText}>1. Подключитесь к Wi-Fi.{ '\n' }2. Откройте настройки сотовой связи и выберите добавление eSIM.{ '\n' }3. Отсканируйте QR-код с другого экрана или введите SM-DP+ адрес и код активации из вкладки «Вручную».{ '\n' }4. Подтвердите добавление eSIM и следуйте подсказкам телефона.</Text></View>}
         <Pressable onPress={() => setInstruction(value => !value)} accessibilityRole="button" accessibilityState={{ expanded: instruction }} testID="installation-instructions"><Text style={styles.link}>{instruction ? 'Свернуть инструкцию' : 'Подробная инструкция'}</Text></Pressable>
       </ScrollView>
-      <View style={styles.handle} pointerEvents="none" />
-    </View>
+    </AnimatedView>
   </View>;
 }
 
 const fontFamily = fonts.text;
 const styles = StyleSheet.create({
   overlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 10, justifyContent: 'flex-end' },
-  backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.6)' },
+  backdrop: { backgroundColor: 'rgba(0,0,0,0.6)' },
   sheet: { width: '100%', backgroundColor: '#1C1C1F', borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden' },
-  content: { flexGrow: 1, paddingTop: 28, paddingHorizontal: 12, gap: 14 },
+  dragArea: { paddingTop: 28, paddingHorizontal: 12 },
+  content: { flexGrow: 1, paddingTop: 14, paddingHorizontal: 12, gap: 14 },
   handle: { position: 'absolute', top: 8, left: '50%', marginLeft: -18, width: 36, height: 5, borderRadius: 3, borderCurve: 'continuous', backgroundColor: 'rgba(255,255,255,0.25)' },
   header: { height: 40, flexShrink: 0, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' },
   headingSlot: { flex: 1, height: 40 },
   heading: { position: 'absolute', left: 0.45703125, top: 11.796875, width: 193, height: 18 },
-  close: { width: 40, height: 40, borderRadius: 20, borderCurve: 'continuous', backgroundColor: colors.selectedTab, alignItems: 'center', justifyContent: 'center' },
   icon: { width: 20, height: 20 },
   tabs: { flexDirection: 'row', flexShrink: 0, padding: 4, borderRadius: 14, borderCurve: 'continuous', backgroundColor: colors.surface },
   tab: { flex: 1, height: 36, borderRadius: 10, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },

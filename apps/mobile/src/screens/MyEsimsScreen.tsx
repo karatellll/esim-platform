@@ -27,7 +27,6 @@ type Navigation = CompositeNavigationProp<BottomTabNavigationProp<RootTabParamLi
 
 const assets = {
   heading: require('../../assets/my-esims/heading.svg'),
-  plus: require('../../assets/my-esims/plus.svg'),
   mascot: require('../../assets/my-esims/sleeping-esim.svg'),
   emptyTitle: require('../../assets/my-esims/empty-title.svg'),
   sticker: require('../../assets/my-esims/empty-sticker.svg'),
@@ -35,9 +34,8 @@ const assets = {
 };
 
 // Figma: populated screen 433:12704, empty screen 91:5500.
-export function MyEsimsLayout({ populated, onAdd, children }: {
+export function MyEsimsLayout({ populated, children }: {
   populated: boolean;
-  onAdd?: () => void;
   children: (insets: { leftInset: number; rightInset: number }) => ReactNode;
 }) {
   const insets = useSafeAreaInsets();
@@ -57,10 +55,6 @@ export function MyEsimsLayout({ populated, onAdd, children }: {
         <View style={styles.headingSlot} accessibilityRole="header" accessibilityLabel="Мои eSIM" accessible>
           <Image source={assets.heading} style={styles.heading} contentFit="contain" accessible={false} />
         </View>
-        {onAdd && <Pressable onPress={onAdd} accessibilityRole="button" accessibilityLabel="Добавить eSIM" testID="my-esims-add"
-          style={({ pressed }) => [styles.addButton, populated && styles.populatedAdd, pressed && styles.pressed]}>
-          <Image source={assets.plus} style={styles.addIcon} accessible={false} />
-        </Pressable>}
       </View>
       {children({ leftInset, rightInset })}
     </ScrollView>
@@ -96,7 +90,7 @@ export function MyEsimsScreen() {
     ...(action === 'install' ? { openInstallation: true } : action === 'top-up' ? { openTopUp: true } : {}),
   });
 
-  return <MyEsimsLayout populated={!!state} onAdd={failed ? undefined : () => navigation.navigate('Countries')}>
+  return <MyEsimsLayout populated={!!state}>
     {insets => failed ? <LoadFailure title="eSIM не загрузились" card testID="my-esims-load-error"
         onRetry={() => { skeleton.restart(); orders.reload(); }} />
         : loading ? skeleton.visible ? <MyEsimsSkeleton /> : null
@@ -143,15 +137,12 @@ const fontFamily = fonts.text;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { width: '100%', gap: 12 },
-  header: { height: 42, paddingHorizontal: 12, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  header: { height: 42, paddingHorizontal: 12, paddingBottom: 4, justifyContent: 'center' },
   populatedHeader: { height: 44 },
   headingSlot: { width: 137, height: 38 },
   // Text SVGs retain Figma's original glyphs. Export crops are positioned using
   // their render bounds inside the original text slots, without scaling.
   heading: { position: 'absolute', left: 1.743164, top: 8.496094, width: 134, height: 22 },
-  addButton: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
-  populatedAdd: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(244,244,247,0.15)' },
-  addIcon: { width: 20, height: 20 },
   emptyCard: { width: '100%', paddingTop: 28, paddingBottom: 20, paddingHorizontal: 20, gap: 14,
     alignItems: 'center', backgroundColor: colors.surface, borderRadius: 28 },
   mascot: { width: 118, height: 126 },

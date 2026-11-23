@@ -1,9 +1,10 @@
+import { modalDragStyle, useModalSwipe } from '../hooks/useModalSwipe';
 import { GlassActionButton } from './GlassActionButton';
 import { Image } from 'expo-image';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Pressable, View } from '../ui/Surface';
+import { AnimatedView, Pressable, View } from '../ui/Surface';
 import { ScrollView } from '../ui/ScrollView';
 import { fonts, StyleSheet } from '../ui/design';
 import { Text, TextInput } from '../ui/Text';
@@ -26,6 +27,9 @@ export function PromoCodeSheet({ onClose, onApply }: Props) {
   useEffect(() => () => request.current?.abort(), []);
 
   const close = () => { request.current?.abort(); Keyboard.dismiss(); onClose(); };
+  const swipe = useModalSwipe(close, { waitForShow: true, onDismissStart: () => request.current?.abort() });
+  const show = swipe.onShow;
+  const onShow = useCallback(() => { show(); input.current?.focus(); }, [show]);
   const apply = async () => {
     if (request.current || !code.trim()) return;
     const controller = new AbortController();
@@ -43,17 +47,20 @@ export function PromoCodeSheet({ onClose, onApply }: Props) {
     }
   };
 
-  return <Modal transparent visible animationType="slide" statusBarTranslucent onRequestClose={close} onShow={() => input.current?.focus()}>
+  return <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={close} onShow={onShow}>
     <View style={s.overlay} testID="promo-overlay">
+      <AnimatedView pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, swipe.backdropStyle]} />
       <Pressable style={StyleSheet.absoluteFill} onPress={close} accessibilityRole="button" accessibilityLabel="Вернуться к оформлению" />
       <KeyboardAvoidingView style={s.bottom} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined} pointerEvents="box-none">
-        <View style={[s.sheet, { marginTop: Math.max(insets.top + 8, 32) }]} accessibilityViewIsModal testID="promo-sheet">
-          <ScrollView keyboardShouldPersistTaps="handled" bounces={false} contentContainerStyle={[s.content, { paddingBottom: focused ? 20 : Math.max(insets.bottom + 20, 32) }]}>
+        <AnimatedView onLayout={swipe.onLayout} style={[s.sheet, swipe.panelStyle, { marginTop: Math.max(insets.top + 8, 32) }]} accessibilityViewIsModal testID="promo-sheet">
+          <View {...swipe.panHandlers} style={[s.dragArea, modalDragStyle]}>
             <View style={s.handle} />
             <View style={s.header}>
-              <GlassActionButton action="back" onPress={close} accessibilityLabel="Назад к оформлению" testID="promo-back" />
               <Text style={s.title} accessibilityRole="header">Промокод</Text>
+              <GlassActionButton action="close" onPress={close} accessibilityLabel="Закрыть ввод промокода" testID="promo-back" />
             </View>
+          </View>
+          <ScrollView keyboardShouldPersistTaps="handled" bounces={false} {...swipe.scrollProps} contentContainerStyle={[s.content, { paddingBottom: focused ? 20 : Math.max(insets.bottom + 20, 32) }]}>
             <View style={s.form}>
               <View style={[s.field, (focused || !!code) && s.fieldFocused, !!error && s.fieldError]} testID="promo-field">
                 <TextInput ref={input} autoFocus value={code} onChangeText={value => { setCode(value.toUpperCase()); setError(null); }}
@@ -73,20 +80,22 @@ export function PromoCodeSheet({ onClose, onApply }: Props) {
               </Text>
             </View>
           </ScrollView>
-        </View>
+        </AnimatedView>
       </KeyboardAvoidingView>
     </View>
   </Modal>;
 }
 
 const s = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
+  overlay: { flex: 1 },
+  backdrop: { backgroundColor: 'rgba(0,0,0,0.55)' },
   bottom: { flex: 1, justifyContent: 'flex-end', alignItems: 'center' },
   sheet: { width: '100%', maxWidth: 600, maxHeight: '90%', flexShrink: 1, backgroundColor: '#1C1C1F', borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden' },
-  content: { paddingTop: 8, paddingHorizontal: 16, gap: 14 },
+  dragArea: { paddingTop: 8, paddingHorizontal: 16, gap: 14 },
+  content: { paddingTop: 14, paddingHorizontal: 16 },
   handle: { width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'center' },
   header: { paddingTop: 8, flexDirection: 'row', gap: 12, alignItems: 'center' },
-  title: { fontFamily: fonts.display, fontSize: 24, lineHeight: 30, fontWeight: '800', color: colors.text },
+  title: { flex: 1, fontFamily: fonts.display, fontSize: 24, lineHeight: 30, fontWeight: '800', color: colors.text },
   form: { gap: 8 },
   field: { height: 56, paddingLeft: 14.5, paddingRight: 4.5, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 16, borderWidth: 1.5, borderColor: 'transparent', backgroundColor: '#2A2A2E' },
   fieldFocused: { borderColor: colors.tariffAccent },

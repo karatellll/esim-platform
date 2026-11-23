@@ -3,7 +3,7 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootTabParamList } from '../navigation/tabs';
 import type { RootStackParamList } from '../navigation/stack';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { ScrollView } from '../ui/ScrollView';
 import { Pressable, View } from '../ui/Surface';
@@ -27,16 +27,12 @@ const categories = [
 
 type Category = (typeof categories)[number]['id'];
 
-const assets = {
-  sticker: require('../../assets/countries/heading-sticker.svg'),
-  search: require('../../assets/home-v3/search.svg'),
-};
+const searchIcon = require('../../assets/home-v3/search.svg');
 const searchLabel = 'Страна, город или регион';
 
 export function CountriesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
-  const scrollRef = useRef<ScrollView>(null);
   const route = useRoute<RouteProp<RootTabParamList, 'Countries'>>();
   const [category, setCategory] = useState<Category>(route.params?.section ?? 'countries');
   useEffect(() => { if (route.params?.section) setCategory(route.params.section); }, [route.params?.section]);
@@ -49,55 +45,31 @@ export function CountriesScreen() {
   const isRegions = category === 'regions';
   const sections = useMemo(() => catalog.state.status === 'ready'
     ? getCountrySections(catalog.state.categories) : [], [catalog.state]);
-  const selectCategory = (next: Category) => {
-    setCategory(next);
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
-  };
 
   return (
     <View style={styles.screen} testID="screen-countries">
     <ScrollView
-      ref={scrollRef}
       style={styles.screen}
       testID="directions-scroll"
       contentInsetAdjustmentBehavior="never"
       showsVerticalScrollIndicator={false}
       contentContainerStyle={[
         styles.content,
-        isRegions && styles.regionsContent,
         {
           paddingTop: topInset + 12,
           paddingBottom: bottomInset + tabBarLayout.height + 16,
-          paddingLeft: Math.max(insets.left, isRegions ? 12 : 16),
-          paddingRight: Math.max(insets.right, isRegions ? 12 : 16),
+          paddingLeft: Math.max(insets.left, 12),
+          paddingRight: Math.max(insets.right, 12),
         },
       ]}
     >
-      {isRegions && <View style={styles.regionsHeading} accessibilityRole="header" accessibilityLabel="Все направления">
-        <Text style={styles.headingText}>Все</Text>
-        <View style={styles.stickerFrame}>
-          <View style={styles.sticker}>
-            <Image source={assets.sticker} style={styles.stickerImage} contentFit="contain" accessible={false} />
-            <Text
-              testID="directions-heading-text"
-              style={[styles.headingText, styles.stickerText]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.85}
-            >
-              направления
-            </Text>
-          </View>
-        </View>
-      </View>}
-
-      {!isRegions && <Pressable style={({ pressed }) => [styles.search, pressed && styles.pressed]}
+      <Pressable style={({ pressed }) => [styles.search, pressed && styles.pressed]}
         onPress={() => navigation.navigate('TripSearch')} accessibilityRole="button" accessibilityLabel={searchLabel} testID="directions-search">
-        <Image source={assets.search} style={styles.searchIcon} contentFit="contain" accessible={false} />
+        <Image source={searchIcon} style={styles.searchIcon} contentFit="contain" accessible={false} />
         <Text style={styles.searchText} numberOfLines={1}>{searchLabel}</Text>
-      </Pressable>}
+      </Pressable>
 
-      <View style={[styles.categories, isRegions && styles.regionsCategories]} testID="directions-categories">
+      <View style={styles.categories} testID="directions-categories">
         {categories.map((item) => {
           const selected = item.id === category;
 
@@ -109,22 +81,21 @@ export function CountriesScreen() {
               accessibilityState={{ selected }}
               aria-pressed={selected}
               testID={`category-${item.id}`}
-              onPress={() => selectCategory(item.id)}
+              onPress={() => setCategory(item.id)}
               style={({ pressed }) => [
                 styles.category,
                 { width: item.width },
-                !isRegions && styles.countryCategory,
                 selected && styles.selectedCategory,
                 pressed && styles.pressed,
               ]}
             >
-              <Text style={[styles.categoryText, !isRegions && styles.countryCategoryText, selected && styles.selectedCategoryText]}>{item.label}</Text>
+              <Text style={[styles.categoryText, selected && styles.selectedCategoryText]}>{item.label}</Text>
             </Pressable>
           );
         })}
       </View>
 
-      {!isRegions && <CatalogWorldBanner onPress={() => navigation.navigate('WorldTariffs', { bundle: globalBundle })} />}
+      <CatalogWorldBanner onPress={() => navigation.navigate('WorldTariffs', { bundle: globalBundle })} />
       {catalog.state.status !== 'ready' ? <CatalogStatus state={catalog.state} onRetry={catalog.reload} title={isRegions ? 'Регионы не загрузились' : undefined} />
           : isRegions ? <CatalogRegions categories={catalog.state.categories} onSelectCategory={(item) => navigation.navigate('RegionTariffs', { category: item })} />
           : <CatalogCountries sections={sections} onSelectCountry={(country) => navigation.navigate('CountryTariffs', { country })} />}
@@ -137,26 +108,8 @@ const fontFamily = fonts.text;
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { width: '100%', gap: 16 },
-  regionsContent: { gap: 12 },
-  regionsHeading: { paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  regionsCategories: { paddingHorizontal: 8 },
-  headingText: {
-    fontFamily: fonts.display,
-    fontSize: 30,
-    lineHeight: 38,
-    fontWeight: '900',
-    // Match SF Pro heading metrics when previewing on Linux/Windows.
-    letterSpacing: Platform.OS === 'web' ? -0.35 : -0.6,
-    color: colors.text,
-    includeFontPadding: false,
-  },
-  stickerFrame: { width: 217.078, height: 49.639, alignItems: 'center', justifyContent: 'center' },
-  sticker: { width: 216, height: 44, transform: [{ rotate: '1.5deg' }] },
-  stickerImage: { position: 'absolute', width: 216, height: 44 },
-  stickerText: { position: 'absolute', left: 12, top: 3, width: 192 },
+  content: { width: '100%', gap: 12 },
   search: {
-    width: '100%',
     height: 52,
     flexShrink: 0,
     backgroundColor: colors.surface,
@@ -181,12 +134,11 @@ const styles = StyleSheet.create({
   category: {
     height: 36,
     borderRadius: 18, borderCurve: 'continuous',
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(38,38,41,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 1,
   },
-  countryCategory: { backgroundColor: 'rgba(38,38,41,0.5)' },
   selectedCategory: { backgroundColor: colors.text },
   categoryText: {
     fontFamily,
@@ -194,10 +146,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '600',
     letterSpacing: -0.056,
-    color: colors.text,
+    color: 'rgba(255,255,255,0.4)',
     includeFontPadding: false,
   },
-  countryCategoryText: { color: 'rgba(255,255,255,0.4)' },
   selectedCategoryText: { color: colors.ink },
   pressed: { opacity: 0.8 },
 });

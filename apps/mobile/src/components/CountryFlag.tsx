@@ -9,10 +9,11 @@ import { flagImages } from '../catalog/flagImages';
 import { isCountry } from '../home/smartSearch';
 import { colors } from '../theme';
 
-export function CountryFlag({ country, shape = 'circle', size = shape === 'rectangle' ? 32 : 36, borderWidth = 0 }: {
+export function CountryFlag({ country, shape = 'circle', size = shape === 'rectangle' ? 32 : 36, borderWidth = 0, borderColor = colors.ink }: {
   country: CatalogEsim;
   size?: number;
   borderWidth?: number;
+  borderColor?: string;
   shape?: 'circle' | 'rectangle';
 }) {
   const [failedImage, setFailedImage] = useState<number>();
@@ -28,7 +29,7 @@ export function CountryFlag({ country, shape = 'circle', size = shape === 'recta
   const borderRadius = rectangular ? size * 12 / 32 : size / 2;
   const imageSize = { width: width - borderWidth * 2, height: size - borderWidth * 2 };
   return (
-    <View style={[styles.flag, { width, height: size, borderRadius, borderWidth, borderColor: colors.ink }]}>
+    <View style={[styles.flag, { width, height: size, borderRadius, borderWidth, borderColor }]}>
       {source !== null ? (
         <Image
           source={source}

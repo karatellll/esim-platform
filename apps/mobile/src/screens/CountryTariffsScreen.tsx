@@ -1,12 +1,13 @@
+import { SwipeDialog } from '../components/SwipeDialog';
 import { GlassActionButton } from '../components/GlassActionButton';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { countryPhoto, preferredCountryPhoto } from '../catalog/photos';
+import { countryPhoto } from '../catalog/photos';
 import { tariffGigabytes } from '../home/recommendation';
 import { formatCatalogPrice } from '../catalog/prices';
 import { useState } from 'react';
-import { Modal, Platform, Share, useWindowDimensions } from 'react-native';
+import { Platform, Share, useWindowDimensions } from 'react-native';
 import { ScrollView } from '../ui/ScrollView';
 import { Pressable, View } from '../ui/Surface';
 import { fonts, StyleSheet } from '../ui/design';
@@ -15,7 +16,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LoadFailure, ServiceState } from '../components/ServiceState';
 import { useOnline } from '../service/connectivity';
-import { CatalogPhoto } from '../components/CatalogPhoto';
 import { CountryFlag } from '../components/CountryFlag';
 import { TariffSkeleton } from '../components/SkeletonLayouts';
 import { TariffPurchaseBar, TariffPurchaseBarSkeleton } from '../components/TariffPurchaseBar';
@@ -39,14 +39,17 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
   const online = useOnline();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const catalog = useCatalogTariffs(route.params.country.id);
-  const skeletonGate = useSkeletonGate(catalog.state.status === 'loading');
+  const destination = route.params.country;
+  const catalog = useCatalogTariffs(destination.id);
+  const data = catalog.state.status === 'ready' && catalog.state.data.esim.id === destination.id ? catalog.state.data : null;
+  const loading = catalog.state.status === 'loading' || (catalog.state.status === 'ready' && !data);
+  const skeletonGate = useSkeletonGate(loading);
   const [durationSelection, setDurationSelection] = useState<string | null>(null);
   const [tariffSelection, setTariffSelection] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
   const failed = catalog.state.status === 'error' || skeletonGate.timedOut;
-  const country = catalog.state.status === 'ready' ? catalog.state.data.esim : route.params.country;
-  const tariffs = catalog.state.status === 'ready' ? catalog.state.data.tariffs : [];
+  const country = data?.esim ?? destination;
+  const tariffs = data?.tariffs ?? [];
   const recommended = recommendTariff(tariffs, route.params);
   const durations = getDurations(tariffs);
   const activeDuration = durations.some((duration) => durationKey(duration) === durationSelection) ? durationSelection : recommended ? durationKey(recommended.duration) : getDefaultDuration(tariffs);
@@ -54,10 +57,6 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
   const selected = visibleTariffs.find((tariff) => tariff.id === tariffSelection)
     ?? visibleTariffs.find((tariff) => tariff.id === recommended?.id) ?? getDefaultTariff(visibleTariffs);
   const isGlobal = country.country_iso2?.toUpperCase() === 'XG';
-  const preferredPhoto = preferredCountryPhoto(country.country_iso2);
-  const photoUrl = preferredPhoto ? undefined : country.photo_url?.trim() || route.params.country.photo_url;
-  const isTurkey = country.country_iso2?.toUpperCase() === 'TR';
-  const fallbackPhoto = preferredPhoto ?? (isTurkey ? require('../../assets/tariffs/turkey-hero.png') : countryPhoto(country.country_iso2));
   const heading = getTariffHeading(country);
   const countryName = heading.label;
   const stickerWidth = Math.min(Math.min(width, 600) - 48, Math.max(123, countryName.length * (isGlobal ? 17 : 15) + 22));
@@ -85,14 +84,8 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
         contentContainerStyle={[styles.content, { paddingTop: topInset + 8, paddingBottom: selected ? bottomPadding + 92 : bottomPadding + 20 }]}
         contentInsetAdjustmentBehavior="never"
       >
-        {!isGlobal && !failed && <View pointerEvents="none" style={[styles.heroPhoto, isTurkey && styles.turkeyBackground]}>
-          <CatalogPhoto
-            url={photoUrl}
-            fallback={fallbackPhoto}
-            style={StyleSheet.absoluteFill}
-            fallbackStyle={isTurkey ? styles.designHeroImage : undefined}
-            fallbackContentFit={isTurkey ? 'contain' : 'cover'}
-          />
+        {!isGlobal && !failed && <View pointerEvents="none" style={styles.heroPhoto}>
+          <Image source={countryPhoto(destination.country_iso2)} style={StyleSheet.absoluteFill} contentFit="cover" accessible={false} />
           <LinearGradient colors={['rgba(20,20,22,0.6)', 'rgba(20,20,22,0.15)', 'rgba(20,20,22,0.5)', colors.background]} locations={[0, 0.3, 0.62, 1]} style={StyleSheet.absoluteFill} />
         </View>}
         <View style={styles.navbar}>
@@ -116,7 +109,7 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
 
         {failed ? <LoadFailure title="Тарифы не загрузились" top={40} testID="tariffs-error"
           onRetry={() => { skeletonGate.restart(); catalog.reload(); }} />
-        : catalog.state.status === 'loading' ? skeletonGate.visible ? <TariffSkeleton /> : null
+        : loading ? skeletonGate.visible ? <TariffSkeleton /> : null
         : tariffs.length === 0 ? (
           <Text style={styles.statusText} testID="tariffs-empty">Тарифы для этого направления пока недоступны.</Text>
         ) : (
@@ -161,16 +154,12 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
         testID="tariff-purchase"
         buyTestID="tariff-buy"
       />}
-      {catalog.state.status === 'loading' && skeletonGate.visible && !skeletonGate.timedOut && <TariffPurchaseBarSkeleton bottomPadding={bottomPadding} />}
-      <Modal visible={notice !== null} transparent animationType="fade" onRequestClose={() => setNotice(null)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard} accessibilityViewIsModal>
-            <Text style={styles.modalTitle}>{notice?.title}</Text>
-            <Text style={styles.modalText} selectable>{notice?.message}</Text>
-            <Pressable style={styles.retry} onPress={() => setNotice(null)} accessibilityRole="button" testID="tariff-notice-close"><Text style={styles.buttonText}>Готово</Text></Pressable>
-          </View>
-        </View>
-      </Modal>
+      {loading && skeletonGate.visible && !skeletonGate.timedOut && <TariffPurchaseBarSkeleton bottomPadding={bottomPadding} />}
+      {notice !== null && <SwipeDialog style={styles.modalCard} onClose={() => setNotice(null)}
+        title={<Text style={styles.modalTitle} accessibilityRole="header">{notice.title}</Text>}>
+        <Text style={styles.modalText} selectable>{notice.message}</Text>
+        <Pressable style={styles.retry} onPress={() => setNotice(null)} accessibilityRole="button" testID="tariff-notice-close"><Text style={styles.buttonText}>Готово</Text></Pressable>
+      </SwipeDialog>}
     </View>
   );
 }
@@ -181,8 +170,6 @@ const styles = StyleSheet.create({
   unitPrice: { color: '#8C8C99', fontSize: 13, lineHeight: 16 },
   screen: { flex: 1, backgroundColor: colors.background },
   heroPhoto: { position: 'absolute', top: 0, left: 0, right: 0, height: 400, overflow: 'hidden' },
-  turkeyBackground: { backgroundColor: '#E30A17' },
-  designHeroImage: { position: 'absolute', width: 690, height: 460, left: -40, top: -60 },
   heroSpace: { height: 170 },
   scroll: { flex: 1 },
   content: { width: '100%', paddingHorizontal: 12, gap: 12 },
@@ -218,7 +205,6 @@ const styles = StyleSheet.create({
   statusText: { fontFamily, fontSize: 14, lineHeight: 20, color: colors.mutedText, textAlign: 'center' },
   retry: { borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.tariffAccent, paddingHorizontal: 24, paddingVertical: 14, alignItems: 'center' },
   pressed: { opacity: 0.8 },
-  modalBackdrop: { flex: 1, padding: 24, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
   modalCard: { width: '100%', maxWidth: 420, padding: 24, gap: 20, borderRadius: 24, borderCurve: 'continuous', backgroundColor: colors.surface },
   modalTitle: { fontFamily: displayFont, fontSize: 22, lineHeight: 28, fontWeight: '900', color: colors.text },
   modalText: { fontFamily, fontSize: 16, lineHeight: 24, color: colors.text },
