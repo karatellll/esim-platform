@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import AnyHttpUrl, Field, SecretStr
+from pydantic import AnyHttpUrl, AwareDatetime, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -21,6 +21,12 @@ class Settings(BaseSettings):
         "http://localhost:8082",
         "http://127.0.0.1:8082",
     ]
+    app_maintenance: bool = False
+    app_maintenance_until: AwareDatetime | None = None
+    app_minimum_ios_version: str | None = Field(default=None, pattern=r"^[0-9]{1,5}\.[0-9]{1,5}\.[0-9]{1,5}$")
+    app_minimum_android_version: str | None = Field(default=None, pattern=r"^[0-9]{1,5}\.[0-9]{1,5}\.[0-9]{1,5}$")
+    app_ios_store_url: AnyHttpUrl | None = None
+    app_android_store_url: AnyHttpUrl | None = None
     esim_provider_base_url: AnyHttpUrl = AnyHttpUrl("https://esim-api.terexov-tech.ru")
     esim_partner_token: SecretStr = SecretStr("")
     esim_publishable_key: SecretStr = SecretStr("")
@@ -44,3 +50,11 @@ class Settings(BaseSettings):
     auth_database_path: Path = REPOSITORY_ROOT / "apps/api/var/auth.sqlite3"
     auth_otp_ttl_seconds: int = Field(default=300, ge=60, le=600)
     auth_cookie_secure: bool = False
+
+    @model_validator(mode="after")
+    def require_store_links_for_updates(self):
+        for version, url in ((self.app_minimum_ios_version, self.app_ios_store_url),
+                             (self.app_minimum_android_version, self.app_android_store_url)):
+            if version and (not url or url.scheme != "https"):
+                raise ValueError("Each minimum app version requires an HTTPS store URL")
+        return self

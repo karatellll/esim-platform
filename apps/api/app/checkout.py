@@ -3,6 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials
+from pydantic import BaseModel
 
 from app.auth import AuthError, bearer, bearer_scheme, check_origin
 from app.auth_models import AuthErrorResponse
@@ -17,6 +18,23 @@ def user(request):
     if not token:
         raise AuthError(401, "session_expired", "Для оформления войдите по почте.")
     return request.app.state.auth.me(token)
+
+
+class SavingsBalance(BaseModel):
+    amount_rub: int
+
+
+@router.get("/api/me/savings", response_model=SavingsBalance, summary="Доступный баланс копилки")
+async def savings_balance(request: Request, response: Response,
+                          credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme)):
+    account = user(request)
+    response.headers["Cache-Control"] = "no-store"
+    orders = await request.app.state.orders.list(account.id, None, 1)
+    # The current deployment has no referral or balance ledger. Only an
+    # account without purchases can be represented by a known empty balance.
+    if orders.data or orders.meta.has_more:
+        raise AuthError(503, "savings_unavailable", "Не удалось загрузить копилку.")
+    return SavingsBalance(amount_rub=0)
 
 
 @router.post("/api/checkout/summary", response_model=CheckoutSummaryResponse,

@@ -157,6 +157,20 @@ def test_guest_preview_is_read_only_catalog_price(checkout_env):
     assert not any(r.url.path.startswith('/v1/sdk/orders') for r in provider.requests)
 
 
+def test_savings_reports_only_a_verified_empty_account(checkout_env):
+    client, _, *_ = checkout_env
+    assert client.get('/api/me/savings').status_code == 401
+    headers, _ = login(checkout_env)
+    empty = client.get('/api/me/savings', headers=headers)
+    assert empty.status_code == 200
+    assert empty.json() == {'amount_rub': 0}
+    assert empty.headers['Cache-Control'] == 'no-store'
+    assert create(client, headers, quote(client, headers)['quote_id']).status_code == 201
+    unavailable = client.get('/api/me/savings', headers=headers)
+    assert unavailable.status_code == 503
+    assert unavailable.json()['error']['code'] == 'savings_unavailable'
+
+
 def test_personal_summary_and_payload_match_supplied_swagger(checkout_env):
     client, provider, *_ = checkout_env
     headers, user_id = login(checkout_env)

@@ -1,9 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from typing import Annotated, Literal
 from uuid import UUID
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import request_validation_exception_handler
@@ -94,6 +96,24 @@ def create_app(
             "status": "ok",
             "catalog_configured": catalog_configured(),
         }
+
+    @application.get("/api/app-status", tags=["health"])
+    async def app_status(
+        platform: Literal["ios", "android", "web"],
+        version: Annotated[str, Query(pattern=r"^[0-9]{1,5}\.[0-9]{1,5}\.[0-9]{1,5}$")],
+    ):
+        headers = {"Cache-Control": "no-store"}
+        minimum, store = {
+            "ios": (settings.app_minimum_ios_version, settings.app_ios_store_url),
+            "android": (settings.app_minimum_android_version, settings.app_android_store_url),
+            "web": (None, None),
+        }[platform]
+        if minimum and tuple(map(int, version.split("."))) < tuple(map(int, minimum.split("."))):
+            return JSONResponse({"status": "update_required", "store_url": str(store)}, status_code=426, headers=headers)
+        until = settings.app_maintenance_until
+        if settings.app_maintenance and (until is None or until > datetime.now(timezone.utc)):
+            return JSONResponse({"status": "maintenance", "until": until.isoformat() if until else None}, status_code=503, headers=headers)
+        return JSONResponse({"status": "ok"}, headers=headers)
 
     @application.get(
         "/api/catalog/categories",
