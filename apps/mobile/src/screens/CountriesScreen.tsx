@@ -2,45 +2,41 @@ import { Image } from 'expo-image';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootTabParamList } from '../navigation/tabs';
-import { useEffect } from 'react';
 import type { RootStackParamList } from '../navigation/stack';
-import { useMemo, useRef, useState } from 'react';
-import { Keyboard, Platform } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { ScrollView } from '../ui/ScrollView';
 import { Pressable, View } from '../ui/Surface';
 import { fonts, StyleSheet } from '../ui/design';
-import { Text, TextInput } from '../ui/Text';
+import { Text } from '../ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getCountrySections } from '../catalog/catalog';
 import { getGlobalBundle } from '../catalog/global';
-import { getCatalogPrice } from '../catalog/prices';
 import { CatalogWorldBanner } from '../components/CatalogWorldBanner';
 import { CatalogCountries } from '../components/CatalogCountries';
 import { CatalogRegions } from '../components/CatalogRegions';
 import { CatalogStatus } from '../components/CatalogStatus';
-import { WorldTariffsPanel } from '../components/WorldTariffsPanel';
 import { useCatalogCategories } from '../hooks/useCatalogCategories';
 import { colors, getTabBarBottom, tabBarLayout } from '../theme';
 
 const categories = [
   { id: 'countries', label: 'Страны', width: 87 },
   { id: 'regions', label: 'Регионы', width: 94 },
-  { id: 'world', label: 'Весь мир', width: 99 },
 ] as const;
 
 type Category = (typeof categories)[number]['id'];
 
 const assets = {
   sticker: require('../../assets/countries/heading-sticker.svg'),
-  search: require('../../assets/countries/search.svg'),
+  search: require('../../assets/home-v3/search.svg'),
 };
+const searchLabel = 'Страна, город или регион';
 
 export function CountriesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
-  const [query, setQuery] = useState('');
   const route = useRoute<RouteProp<RootTabParamList, 'Countries'>>();
   const [category, setCategory] = useState<Category>(route.params?.section ?? 'countries');
   useEffect(() => { if (route.params?.section) setCategory(route.params.section); }, [route.params?.section]);
@@ -48,42 +44,36 @@ export function CountriesScreen() {
   const globalBundle = catalog.state.status === 'ready'
     ? getGlobalBundle(catalog.state.categories)
     : null;
-  const globalPrice = globalBundle ? getCatalogPrice(globalBundle) : null;
   const topInset = Platform.OS === 'web' ? 48 : insets.top;
   const bottomInset = getTabBarBottom(insets.bottom, Platform.OS === 'web');
   const isRegions = category === 'regions';
-  const isWorld = category === 'world';
-  const isCompact = isRegions || isWorld;
   const sections = useMemo(() => catalog.state.status === 'ready'
-    ? getCountrySections(catalog.state.categories, query) : [], [catalog.state, query]);
+    ? getCountrySections(catalog.state.categories) : [], [catalog.state]);
   const selectCategory = (next: Category) => {
     setCategory(next);
-    Keyboard.dismiss();
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   };
 
   return (
-    <View style={styles.screen} testID={isWorld ? 'screen-world' : 'screen-countries'}>
+    <View style={styles.screen} testID="screen-countries">
     <ScrollView
       ref={scrollRef}
       style={styles.screen}
       testID="directions-scroll"
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
       contentInsetAdjustmentBehavior="never"
+      showsVerticalScrollIndicator={false}
       contentContainerStyle={[
         styles.content,
-        isCompact && styles.regionsContent,
-        isWorld && styles.worldContent,
+        isRegions && styles.regionsContent,
         {
           paddingTop: topInset + 12,
           paddingBottom: bottomInset + tabBarLayout.height + 16,
-          paddingLeft: Math.max(insets.left, isCompact ? 12 : 16),
-          paddingRight: Math.max(insets.right, isCompact ? 12 : 16),
+          paddingLeft: Math.max(insets.left, isRegions ? 12 : 16),
+          paddingRight: Math.max(insets.right, isRegions ? 12 : 16),
         },
       ]}
     >
-      <View style={[styles.heading, isCompact && styles.regionsHeading]} accessibilityRole="header" accessibilityLabel="Все направления">
+      {isRegions && <View style={styles.regionsHeading} accessibilityRole="header" accessibilityLabel="Все направления">
         <Text style={styles.headingText}>Все</Text>
         <View style={styles.stickerFrame}>
           <View style={styles.sticker}>
@@ -99,28 +89,15 @@ export function CountriesScreen() {
             </Text>
           </View>
         </View>
-      </View>
-
-      {category === 'countries' && <View style={styles.search} testID="directions-search">
-        <Image source={assets.search} style={styles.searchIcon} contentFit="contain" accessible={false} />
-        <TextInput
-          style={styles.searchInput}
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Страна или регион"
-          placeholderTextColor={colors.mutedText}
-          selectionColor={colors.accent}
-          accessibilityLabel="Страна или регион"
-          testID="directions-search-input"
-          autoCorrect={false}
-          autoCapitalize="none"
-          returnKeyType="search"
-          underlineColorAndroid="transparent"
-          onSubmitEditing={() => Keyboard.dismiss()}
-        />
       </View>}
 
-      <View style={[styles.categories, isCompact && styles.regionsCategories]} testID="directions-categories">
+      {!isRegions && <Pressable style={({ pressed }) => [styles.search, pressed && styles.pressed]}
+        onPress={() => navigation.navigate('TripSearch')} accessibilityRole="button" accessibilityLabel={searchLabel} testID="directions-search">
+        <Image source={assets.search} style={styles.searchIcon} contentFit="contain" accessible={false} />
+        <Text style={styles.searchText} numberOfLines={1}>{searchLabel}</Text>
+      </Pressable>}
+
+      <View style={[styles.categories, isRegions && styles.regionsCategories]} testID="directions-categories">
         {categories.map((item) => {
           const selected = item.id === category;
 
@@ -136,25 +113,21 @@ export function CountriesScreen() {
               style={({ pressed }) => [
                 styles.category,
                 { width: item.width },
+                !isRegions && styles.countryCategory,
                 selected && styles.selectedCategory,
                 pressed && styles.pressed,
               ]}
             >
-              <Text style={[styles.categoryText, selected && styles.selectedCategoryText]}>{item.label}</Text>
+              <Text style={[styles.categoryText, !isRegions && styles.countryCategoryText, selected && styles.selectedCategoryText]}>{item.label}</Text>
             </Pressable>
           );
         })}
       </View>
 
-      {category === 'countries' && <CatalogWorldBanner price={globalPrice} onPress={() => selectCategory('world')} />}
-      {catalog.state.status !== 'ready' ? <CatalogStatus state={catalog.state} onRetry={catalog.reload} />
-          : isWorld ? <WorldTariffsPanel key={globalBundle?.id ?? 'missing'} bundle={globalBundle} onReloadCatalog={catalog.reload} catalogState={catalog.state} />
+      {!isRegions && <CatalogWorldBanner onPress={() => navigation.navigate('WorldTariffs', { bundle: globalBundle })} />}
+      {catalog.state.status !== 'ready' ? <CatalogStatus state={catalog.state} onRetry={catalog.reload} title={isRegions ? 'Регионы не загрузились' : undefined} />
           : isRegions ? <CatalogRegions categories={catalog.state.categories} onSelectCategory={(item) => navigation.navigate('RegionTariffs', { category: item })} />
-          : <CatalogCountries
-              sections={sections}
-              query={query}
-              onSelectCountry={(country) => { Keyboard.dismiss(); navigation.navigate('CountryTariffs', { country }); }}
-            />}
+          : <CatalogCountries sections={sections} onSelectCountry={(country) => navigation.navigate('CountryTariffs', { country })} />}
     </ScrollView>
     </View>
   );
@@ -166,10 +139,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { width: '100%', gap: 16 },
   regionsContent: { gap: 12 },
-  worldContent: { width: '100%' },
-  regionsHeading: { paddingHorizontal: 12 },
+  regionsHeading: { paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
   regionsCategories: { paddingHorizontal: 8 },
-  heading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headingText: {
     fontFamily: fonts.display,
     fontSize: 30,
@@ -188,7 +159,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 52,
     flexShrink: 0,
-    backgroundColor: colors.selectedTab,
+    backgroundColor: colors.surface,
     borderRadius: 16, borderCurve: 'continuous',
     flexDirection: 'row',
     alignItems: 'center',
@@ -196,21 +167,14 @@ const styles = StyleSheet.create({
     paddingLeft: 14,
     paddingRight: 16,
   },
-  searchIcon: { width: 20, height: 20 },
-  searchInput: {
+  searchIcon: { width: 24, height: 24 },
+  searchText: {
     flex: 1,
-    height: 22,
-    borderWidth: 0,
-    outlineWidth: 0,
-    backgroundColor: 'transparent',
-    textAlignVertical: 'center',
     minWidth: 0,
-    padding: 0,
     fontFamily,
     fontSize: 16,
-    lineHeight: 22,
-    letterSpacing: -0.064,
-    color: colors.text,
+    lineHeight: 24,
+    color: 'rgba(255,255,255,0.4)',
     includeFontPadding: false,
   },
   categories: { flexDirection: 'row', gap: 8 },
@@ -222,6 +186,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 1,
   },
+  countryCategory: { backgroundColor: 'rgba(38,38,41,0.5)' },
   selectedCategory: { backgroundColor: colors.text },
   categoryText: {
     fontFamily,
@@ -232,6 +197,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     includeFontPadding: false,
   },
+  countryCategoryText: { color: 'rgba(255,255,255,0.4)' },
   selectedCategoryText: { color: colors.ink },
   pressed: { opacity: 0.8 },
 });

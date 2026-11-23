@@ -1,3 +1,4 @@
+import { GlassActionButton } from './GlassActionButton';
 import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform } from 'react-native';
@@ -50,9 +51,7 @@ export function PromoCodeSheet({ onClose, onApply }: Props) {
           <ScrollView keyboardShouldPersistTaps="handled" bounces={false} contentContainerStyle={[s.content, { paddingBottom: focused ? 20 : Math.max(insets.bottom + 20, 32) }]}>
             <View style={s.handle} />
             <View style={s.header}>
-              <Pressable style={s.back} onPress={close} accessibilityRole="button" accessibilityLabel="Назад к оформлению" testID="promo-back">
-                <Image source={require('../../assets/checkout/promo-back.svg')} style={s.icon} accessible={false} />
-              </Pressable>
+              <GlassActionButton action="back" onPress={close} accessibilityLabel="Назад к оформлению" testID="promo-back" />
               <Text style={s.title} accessibilityRole="header">Промокод</Text>
             </View>
             <View style={s.form}>
@@ -87,8 +86,6 @@ const s = StyleSheet.create({
   content: { paddingTop: 8, paddingHorizontal: 16, gap: 14 },
   handle: { width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'center' },
   header: { paddingTop: 8, flexDirection: 'row', gap: 12, alignItems: 'center' },
-  back: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
-  icon: { width: 20, height: 20 },
   title: { fontFamily: fonts.display, fontSize: 24, lineHeight: 30, fontWeight: '800', color: colors.text },
   form: { gap: 8 },
   field: { height: 56, paddingLeft: 14.5, paddingRight: 4.5, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 16, borderWidth: 1.5, borderColor: 'transparent', backgroundColor: '#2A2A2E' },

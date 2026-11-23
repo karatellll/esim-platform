@@ -20,11 +20,14 @@ test('absent or malformed amounts never become a zero price', () => {
     assert.equal(getCatalogPrice(esim(amount)), null);
   }
   assert.equal(formatCatalogPrice(null), '—');
+  assert.equal(formatCatalogPrice(null, 0), '—');
 });
 
 test('documented fractional major units retain their value', () => {
   assert.deepEqual(getCatalogPrice(esim(45.5)), { amount: 45.5, currency: 'RUB' });
   assert.equal(formatCatalogPrice(getCatalogPrice(esim(45.5))).replace(/\s/g, ' '), 'от 45,5 ₽');
+  assert.equal(formatCatalogPrice(getCatalogPrice(esim(45.5)), 0).replace(/\s/g, ' '), 'от 46 ₽');
+  assert.equal(formatCatalogPrice(getCatalogPrice(esim(45.49)), 0).replace(/\s/g, ' '), 'от 45 ₽');
 });
 
 test('price requires a currency', () => {

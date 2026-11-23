@@ -1,5 +1,16 @@
 import type { ImageSource } from 'expo-image';
+
+const earthPhoto: ImageSource = require('../../assets/photos/earth.jpg');
+
 // Free Unsplash photos downloaded locally; provenance: assets/photos/countries/sources.json.
+const preferredCountryPhotos: Partial<Record<string, ImageSource>> = {
+  BY: require('../../assets/photos/countries/BY.jpg'),
+  GE: require('../../assets/photos/countries/GE.jpg'),
+  KN: require('../../assets/photos/countries/KN.jpg'),
+  LC: require('../../assets/photos/countries/LC.jpg'),
+  NE: require('../../assets/photos/countries/NE.jpg'),
+};
+
 const countries: Record<string, ImageSource> = {
   AD: require('../../assets/photos/countries/AD.jpg'),
   AE: require('../../assets/photos/countries/AE.jpg'),
@@ -22,7 +33,6 @@ const countries: Record<string, ImageSource> = {
   BO: require('../../assets/photos/countries/BO.jpg'),
   BR: require('../../assets/photos/countries/BR.jpg'),
   BS: require('../../assets/photos/countries/BS.jpg'),
-  BY: require('../../assets/photos/countries/BY.jpg'),
   BZ: require('../../assets/photos/countries/BZ.jpg'),
   CA: require('../../assets/photos/countries/CA.jpg'),
   CD: require('../../assets/photos/countries/CD.jpg'),
@@ -51,7 +61,6 @@ const countries: Record<string, ImageSource> = {
   GA: require('../../assets/photos/countries/GA.jpg'),
   GB: require('../../assets/photos/countries/GB.jpg'),
   GD: require('../../assets/photos/countries/GD.jpg'),
-  GE: require('../../assets/photos/countries/GE.jpg'),
   GF: require('../../assets/photos/countries/GF.jpg'),
   GH: require('../../assets/photos/countries/GH.jpg'),
   GI: require('../../assets/photos/countries/GI.jpg'),
@@ -76,13 +85,11 @@ const countries: Record<string, ImageSource> = {
   KE: require('../../assets/photos/countries/KE.jpg'),
   KG: require('../../assets/photos/countries/KG.jpg'),
   KH: require('../../assets/photos/countries/KH.jpg'),
-  KN: require('../../assets/photos/countries/KN.jpg'),
   KR: require('../../assets/photos/countries/KR.jpg'),
   KW: require('../../assets/photos/countries/KW.jpg'),
   KY: require('../../assets/photos/countries/KY.jpg'),
   KZ: require('../../assets/photos/countries/KZ.jpg'),
   LA: require('../../assets/photos/countries/LA.jpg'),
-  LC: require('../../assets/photos/countries/LC.jpg'),
   LI: require('../../assets/photos/countries/LI.jpg'),
   LK: require('../../assets/photos/countries/LK.jpg'),
   LT: require('../../assets/photos/countries/LT.jpg'),
@@ -102,7 +109,6 @@ const countries: Record<string, ImageSource> = {
   MW: require('../../assets/photos/countries/MW.jpg'),
   MX: require('../../assets/photos/countries/MX.jpg'),
   MY: require('../../assets/photos/countries/MY.jpg'),
-  NE: require('../../assets/photos/countries/NE.jpg'),
   NG: require('../../assets/photos/countries/NG.jpg'),
   NI: require('../../assets/photos/countries/NI.jpg'),
   NL: require('../../assets/photos/countries/NL.jpg'),
@@ -151,7 +157,7 @@ const countries: Record<string, ImageSource> = {
 };
 export const regionPhotos: Record<string, ImageSource> = {
   'популярное': require('../../assets/photos/turkey.jpg'),
-  'европа': require('../../assets/photos/italy.jpg'),
+  'европа': require('../../assets/regions/europe.jpg'),
   'азия': require('../../assets/photos/japan.jpg'),
   'ближний восток': require('../../assets/photos/uae.jpg'),
   'кавказ': require('../../assets/photos/georgia.jpg'),
@@ -160,5 +166,19 @@ export const regionPhotos: Record<string, ImageSource> = {
   'южная америка': require('../../assets/photos/countries/SOUTH_AMERICA.jpg'),
   'океания': require('../../assets/photos/countries/OCEANIA.jpg'),
 };
-export function regionPhoto(title: string): ImageSource { return regionPhotos[title.trim().toLocaleLowerCase('ru')] ?? regionPhotos['популярное']; }
-export function countryPhoto(code: string | null | undefined): ImageSource | undefined { return countries[code?.toUpperCase() ?? '']; }
+export function regionPhoto(title: string): ImageSource { return regionPhotos[title.trim().toLocaleLowerCase('ru')] ?? earthPhoto; }
+
+const preferredRegionNames = new Set(['европа', 'северная америка', 'южная америка']);
+
+export function preferredRegionPhoto(title: string): ImageSource | undefined {
+  const name = title.trim().toLocaleLowerCase('ru');
+  return preferredRegionNames.has(name) ? regionPhotos[name] : undefined;
+}
+
+export function preferredCountryPhoto(code: string | null | undefined): ImageSource | undefined {
+  return preferredCountryPhotos[code?.trim().toUpperCase() ?? ''];
+}
+
+export function countryPhoto(code: string | null | undefined): ImageSource {
+  return preferredCountryPhoto(code) ?? countries[code?.trim().toUpperCase() ?? ''] ?? earthPhoto;
+}

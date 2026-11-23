@@ -104,10 +104,14 @@ export function planTrip(selected: readonly CatalogEsim[], categories: readonly 
   visit(countries, []);
   return { primary, alternative: primaryPrice && bestAmount < primaryPrice.amount ? best : null, separateMoreExpensive: !!primaryPrice && Number.isFinite(bestAmount) && bestAmount >= primaryPrice.amount, ignored };
 }
+export function isSearchRegion(category: CatalogCategory) {
+  return normalize(category.title) !== 'популярное' && (category.esims.some(isCountry) || !!categoryBundle(category));
+}
+
 export function findRegions(categories: readonly CatalogCategory[], query: string) {
   const term = normalize(query);
-  const english: Record<string, string> = { europe: 'европа', asia: 'азия', africa: 'африка', 'north america': 'северная америка', 'south america': 'южная америка', oceania: 'океания', world: 'весь мир' };
-  return term.length < 2 ? [] : categories.filter(category => categoryBundle(category) && normalize(category.title).startsWith(english[term] ?? term));
+  const english: Record<string, string> = { europe: 'европа', asia: 'азия', africa: 'африка', 'north america': 'северная америка', 'south america': 'южная америка', oceania: 'океания', 'middle east': 'ближний восток', caucasus: 'кавказ', world: 'весь мир' };
+  return term.length < 2 ? [] : categories.filter(category => isSearchRegion(category) && normalize(category.title).startsWith(english[term] ?? term));
 }
 
 export function searchableCountries(available: readonly CatalogEsim[]): CatalogEsim[] {

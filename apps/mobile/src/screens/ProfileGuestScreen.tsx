@@ -52,20 +52,17 @@ export function ProfileGuestScreen() {
   const bottomInset = getTabBarBottom(insets.bottom, Platform.OS === 'web');
   const horizontalInset = Math.max(12, insets.left, insets.right);
   const contentWidth = width;
-  const headingScale = Math.min(1, (contentWidth - horizontalInset * 2 - 24) / 319.996826);
+  const compactHeading = contentWidth - 2 * horizontalInset < 320;
 
   return <View style={styles.screen} testID="screen-profile">
-    <ScrollView style={styles.screen} scrollEnabled={true} bounces={false} overScrollMode="never" contentInsetAdjustmentBehavior="never" showsVerticalScrollIndicator={false} testID="profile-scroll" contentContainerStyle={[styles.content, { paddingTop: topInset + 16, paddingBottom: Math.max(120, bottomInset + tabBarLayout.height + 20), paddingHorizontal: horizontalInset }]}>
-      <View style={styles.heading} accessibilityRole="header" accessibilityLabel="Войдите — и eSIM не потеряются">
-        <Text style={styles.headingText} numberOfLines={1}>Войдите —</Text>
-        <View style={{ width: 319.996826 * headingScale, height: 46.82341 * headingScale }}>
-          <View style={[styles.headingRow, { transform: [{ scale: headingScale }] }]}>
-            <Text style={[styles.headingText, styles.headingPrefix]} numberOfLines={1}>и eSIM</Text>
-            <View style={styles.stickerFrame}>
-              <View style={styles.sticker}>
-                <Image source={assets.sticker} style={styles.stickerImage} contentFit="contain" accessible={false} />
-                <Text style={styles.stickerText} numberOfLines={1}>не потеряются</Text>
-              </View>
+    <ScrollView style={styles.screen} scrollEnabled={true} bounces={false} overScrollMode="never" contentInsetAdjustmentBehavior="never" showsVerticalScrollIndicator={false} testID="profile-scroll" contentContainerStyle={[styles.content, { paddingTop: topInset + 12, paddingBottom: Math.max(120, bottomInset + tabBarLayout.height + 20), paddingHorizontal: horizontalInset }]}>
+      <View style={styles.heading} accessibilityRole="header" accessibilityLabel="Войдите в аккаунт">
+        <View style={styles.headingRow}>
+          <Text style={[styles.headingText, compactHeading && styles.compactHeadingText]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Войдите в</Text>
+          <View style={styles.stickerFrame}>
+            <View style={styles.sticker}>
+              <Image source={assets.sticker} style={StyleSheet.absoluteFill} contentFit="contain" accessible={false} />
+              <Text style={[styles.stickerText, compactHeading && styles.compactHeadingText]} numberOfLines={1}>аккаунт</Text>
             </View>
           </View>
         </View>
@@ -106,14 +103,13 @@ const displayFont = fonts.display;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { width: '100%', gap: 12 },
-  heading: { paddingHorizontal: 12, paddingBottom: 4, gap: 4, minHeight: 136.82341 },
-  headingText: { height: 36, fontFamily: displayFont, fontWeight: '900', fontSize: 28, lineHeight: 36, letterSpacing: -0.56, color: colors.text, includeFontPadding: false },
-  headingRow: { position: 'absolute', width: 319.996826, height: 46.82341, flexDirection: 'row', alignItems: 'center', gap: 8, transformOrigin: 'top left' },
-  headingPrefix: { width: 88 },
-  stickerFrame: { width: 223.99684, height: 46.82341, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  sticker: { width: 223, height: 41, transform: [{ rotate: '1.5deg' }] },
-  stickerImage: { position: 'absolute', width: 223, height: 41 },
-  stickerText: { position: 'absolute', left: 11, top: 3, fontFamily: displayFont, fontWeight: '900', fontSize: 28, lineHeight: 36, letterSpacing: -0.56, color: colors.text, includeFontPadding: false },
+  heading: { paddingHorizontal: 12, paddingBottom: 4, gap: 4 },
+  headingText: { flexShrink: 1, fontFamily: displayFont, fontWeight: '900', fontSize: 28, lineHeight: 36, letterSpacing: -0.56, color: colors.text, includeFontPadding: false },
+  compactHeadingText: { fontSize: 24 },
+  headingRow: { minHeight: 46.38675, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  stickerFrame: { width: 136, height: 45, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  sticker: { width: 135, height: 41, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '1.5deg' }] },
+  stickerText: { fontFamily: displayFont, fontWeight: '900', fontSize: 28, lineHeight: 36, letterSpacing: -0.56, color: colors.text, includeFontPadding: false },
   subtitle: { minHeight: 42, fontFamily, fontSize: 15, lineHeight: 21, letterSpacing: -0.06, color: 'rgba(255,255,255,0.6)', includeFontPadding: false },
   signInSlot: { height: 64, paddingVertical: 4 },
   signIn: { height: 56, borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' },

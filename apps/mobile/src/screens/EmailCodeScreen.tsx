@@ -11,9 +11,12 @@ import { AuthLayout, authStyles } from '../components/AuthLayout';
 import type { RootStackParamList } from '../navigation/stack';
 import { colors } from '../theme';
 
+import { useOnline } from '../service/connectivity';
+
 type Props = NativeStackScreenProps<RootStackParamList, 'EmailCode'>;
 export function EmailCodeScreen({ route, navigation }: Props) {
   const auth = useAuth();
+  const online = useOnline();
   const [challenge, setChallenge] = useState(route.params.challenge);
   const [code, setCode] = useState('');
   const [focused, setFocused] = useState(false);
@@ -32,7 +35,7 @@ export function EmailCodeScreen({ route, navigation }: Props) {
   const blocked = now < blockedUntil;
   const expired = now >= expiresAt;
   const verify = async (value: string) => {
-    if (running.current || resending.current || value.length !== 6 || Date.now() < blockedUntil || Date.now() >= expiresAt) return;
+    if (!online || running.current || resending.current || value.length !== 6 || Date.now() < blockedUntil || Date.now() >= expiresAt) return;
     running.current = true;
     setBusy(true);
     setError(null);
@@ -50,7 +53,7 @@ export function EmailCodeScreen({ route, navigation }: Props) {
     } finally { running.current = false; setBusy(false); }
   };
   const resend = async () => {
-    if (running.current || resending.current || Date.now() < resendAt) return;
+    if (!online || running.current || resending.current || Date.now() < resendAt) return;
     resending.current = true;
     setSending(true);
     setError(null);
@@ -74,11 +77,11 @@ export function EmailCodeScreen({ route, navigation }: Props) {
           {focused && index === code.length && !busy && <View style={styles.cursor} />}
         </View>)}
       </View>
-      <TextInput ref={input} value={code} onChangeText={value => { const next = value.replace(/[^0-9]/g, '').slice(0, 6); setCode(next); setError(null); if (next.length === 6) void verify(next); }} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} autoFocus keyboardType="number-pad" inputMode="numeric" autoComplete="one-time-code" textContentType="oneTimeCode" maxLength={6} caretHidden selectionColor="transparent" onSubmitEditing={() => void verify(code)} editable={!busy && !sending && !blocked && !expired} accessibilityLabel="Шестизначный код из письма" testID="auth-code" style={styles.codeInput} />
+      <TextInput ref={input} value={code} onChangeText={value => { const next = value.replace(/[^0-9]/g, '').slice(0, 6); setCode(next); setError(null); if (next.length === 6) void verify(next); }} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} autoFocus keyboardType="number-pad" inputMode="numeric" autoComplete="one-time-code" textContentType="oneTimeCode" maxLength={6} caretHidden selectionColor="transparent" onSubmitEditing={() => void verify(code)} editable={online && !busy && !sending && !blocked && !expired} accessibilityLabel="Шестизначный код из письма" testID="auth-code" style={styles.codeInput} />
     </View>
     {busy && <ActivityIndicator color={colors.tariffAccent} accessibilityLabel="Проверяем код" />}
     {(error || expired) && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={authStyles.error} testID="auth-code-error">{error || 'Срок действия кода истёк. Отправьте новый.'}</Text>}
-    <Pressable onPress={() => void resend()} disabled={wait > 0 || busy || sending} accessibilityRole="button" testID="auth-resend" style={authStyles.link}>
+    <Pressable onPress={() => void resend()} disabled={!online || wait > 0 || busy || sending} accessibilityRole="button" testID="auth-resend" style={authStyles.link}>
       <Text style={[authStyles.linkText, wait === 0 && { color: colors.accent }]}>{sending ? 'Отправляем…' : wait > 0 ? 'Отправить снова через ' + Math.floor(wait / 60) + ':' + String(wait % 60).padStart(2, '0') : 'Отправить код снова'}</Text>
     </Pressable>
     <Pressable onPress={() => navigation.goBack()} disabled={busy || sending} accessibilityRole="button" testID="auth-change-email" style={authStyles.link}><Text style={authStyles.linkText}>Изменить почту</Text></Pressable>

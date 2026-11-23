@@ -11,10 +11,15 @@ https://unsplash.com/license. Оптимизированы CDN до ширины
 | georgia.jpg | Max (@baseddesigner) | https://unsplash.com/photos/xqAWLHjWIKw | Грузия / Кавказ |
 | uae.jpg | Kevin JD | https://unsplash.com/photos/Ib4lAwjn4_Y | ОАЭ / Ближний Восток |
 
-Для остальных стран не подставляются изображения другого направления:
-экран сохраняет флаг страны из API. Фотографии не являются данными о покрытии.
+Каталог `countries/` содержит снимки для 147 стран и четырёх регионов.
+Поисковые страницы, точные CDN-адреса и даты загрузки записаны в
+`countries/sources.json`. Фотографии не являются данными о покрытии.
 
-Дополнение: каталог `countries/` содержит снимки для 147 стран и четырёх
-дополнительных регионов. Поисковые страницы, точные CDN-адреса каждого снимка
-и дата загрузки записаны в `countries/sources.json`. Снимки найдены в бесплатной
-части Unsplash (`images.unsplash.com`, исключая Unsplash+).
+Снимок Алжира обновлён 21 ноября 2026 года. В тот же день скачан снимок
+Земли `earth.jpg` для направлений, у которых пока нет собственного снимка.
+[Алжир, Salah Eddine Haddad](https://unsplash.com/photos/a-city-next-to-a-body-of-water-OUx8LQltxWs) ·
+[Земля, NASA](https://unsplash.com/photos/view-of-earth-from-space-with-clouds-ErjNGXc9mqA)
+
+22 ноября 2026 года обновлены снимки Беларуси, Грузии, Сент-Китса и Невиса,
+Сент-Люсии и Нигера. Версии для приложения сохранены в JPEG шириной
+1280 px. Авторы и ссылки на оригиналы указаны в `countries/sources.json`.

@@ -1,9 +1,11 @@
-// Figma: F · Главная (38:4518), Таббар (38:4588).
+// Shared tab bar, measured from Figma screen 475:11924.
 export const colors = {
   background: '#141416',
   surface: '#262629',
   tabBar: '#212124',
   selectedTab: '#38383C',
+  floatingTabBar: 'rgba(33,33,36,0.5)',
+  selectedFloatingTab: '#38383C',
   accent: '#808FFF',
   tariffAccent: '#4D5CFF',
   mutedText: 'rgba(255, 255, 255, 0.5)',
@@ -14,20 +16,20 @@ export const colors = {
 } as const;
 
 export const tabBarLayout = {
-  bottomOffset: 13,
+  bottomOffset: 24,
+  webSafeAreaBottom: 34,
   height: 64,
   horizontalMargin: 12,
   padding: 6,
   borderRadius: 24,
   itemHeight: 52,
   itemRadius: 18,
-  iconSize: 22,
-  labelGap: 2,
+  labelGap: 4,
   fontSize: 12,
   lineHeight: 14,
   letterSpacing: -0.048,
 } as const;
 
 export function getTabBarBottom(bottomInset: number, web = false) {
-  return web ? tabBarLayout.bottomOffset : Math.max(tabBarLayout.bottomOffset, bottomInset - 21);
+  return web ? tabBarLayout.bottomOffset : Math.max(tabBarLayout.bottomOffset, bottomInset - 10);
 }

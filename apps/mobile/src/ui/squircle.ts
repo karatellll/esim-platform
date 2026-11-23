@@ -1,8 +1,9 @@
 import { getSvgPath } from 'figma-squircle';
 
-// Figma defines 0.6 as the iOS continuous corner contour.
-export const CORNER_SMOOTHING = 0.6;
+// Use Figma's maximum corner smoothing for shared cards, controls and sheets.
+export const CORNER_SMOOTHING = 1;
 export type CornerStyle = {
+  cornerSmoothing?: number;
   borderRadius?: number | string;
   borderTopLeftRadius?: number | string;
   borderTopRightRadius?: number | string;
@@ -40,7 +41,8 @@ export function getSurfacePath(width: number, height: number, style: CornerStyle
     topRightCornerRadius: Math.max(0, corners.topRight - inset),
     bottomRightCornerRadius: Math.max(0, corners.bottomRight - inset),
     bottomLeftCornerRadius: Math.max(0, corners.bottomLeft - inset),
-    cornerSmoothing: CORNER_SMOOTHING,
+    cornerSmoothing: typeof style.cornerSmoothing === 'number' && Number.isFinite(style.cornerSmoothing)
+      ? Math.max(0, Math.min(1, style.cornerSmoothing)) : CORNER_SMOOTHING,
     preserveSmoothing: true,
   });
 }

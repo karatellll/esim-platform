@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 
 import type { MeResponse, RefreshRequest, SendCodeResponse, SessionResponse } from '../../../../packages/shared/contracts/auth';
 import { getApiBaseUrl } from './client';
+import { reportUnauthorized } from '../auth/unauthorized';
 
 export const sessionClient = Platform.OS === 'web' ? 'web' : 'native';
 
@@ -28,8 +29,9 @@ export async function authRequest<T>(path: string, body?: unknown, accessToken?:
       signal: controller.signal,
     });
     if (response.status === 204) return undefined as T;
-    const data = await response.json() as { error?: { message?: string; retry_after_seconds?: number } };
-    if (!response.ok) throw new AuthApiError(data.error?.message || 'Не удалось выполнить вход. Попробуйте ещё раз.', response.status, data.error?.retry_after_seconds || 0);
+    if (response.status === 401) reportUnauthorized(accessToken);
+    const data = await response.json().catch(error => { if (response.ok) throw error; return null; }) as { error?: { message?: string; retry_after_seconds?: number } } | null;
+    if (!response.ok) throw new AuthApiError(data?.error?.message || 'Не удалось выполнить вход. Попробуйте ещё раз.', response.status, data?.error?.retry_after_seconds || 0);
     return data as T;
   } catch (error) {
     if (error instanceof AuthApiError) throw error;

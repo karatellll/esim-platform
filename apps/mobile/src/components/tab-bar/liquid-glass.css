@@ -1,0 +1,27 @@
+/* Scoped adapter for liquid-glass-react 1.1.1; no global Tailwind dependency. */
+.tursim-liquid-glass-layers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Its optional light/gloss layers use Tailwind utilities upstream. */
+.tursim-liquid-glass-layers > div:not(.tursim-liquid-glass-surface),
+.tursim-liquid-glass-layers > span {
+  display: none !important;
+}
+
+.tursim-liquid-glass-surface > .glass {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  gap: 0 !important;
+  box-shadow: none !important;
+  transition: none !important;
+}
+
+.tursim-liquid-glass-surface > .glass > div {
+  width: 100%;
+  height: 100%;
+  text-shadow: none !important;
+}

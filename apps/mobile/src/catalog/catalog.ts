@@ -24,11 +24,9 @@ export function getCountries(categories: readonly CatalogCategory[]): CatalogEsi
   return [...countries.values()].sort((a, b) => a.display_name.localeCompare(b.display_name, 'ru', { sensitivity: 'base' }));
 }
 
-export function getCountrySections(categories: readonly CatalogCategory[], query: string): CountrySection[] {
-  const normalizedQuery = query.trim().toLocaleLowerCase('ru');
+export function getCountrySections(categories: readonly CatalogCategory[]): CountrySection[] {
   const sections = new Map<string, CatalogEsim[]>();
   for (const country of getCountries(categories)) {
-    if (normalizedQuery && !`${country.display_name} ${country.country_iso2}`.toLocaleLowerCase('ru').includes(normalizedQuery)) continue;
     const firstLetter = country.display_name.trim().charAt(0).toLocaleUpperCase('ru');
     const letter = firstLetter === 'Ё' ? 'Е' : firstLetter;
     const group = sections.get(letter) ?? [];

@@ -1,17 +1,24 @@
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Platform, Pressable as NativePressable } from 'react-native';
 import { Pressable, View } from '../ui/Surface';
 import { fonts, StyleSheet } from '../ui/design';
 import { Text } from '../ui/Text';
 
 import type { CatalogCategory } from '../../../../packages/shared/contracts/catalog';
 import { countLabel, getCountries } from '../catalog/catalog';
+import { preferredRegionPhoto, regionPhoto } from '../catalog/photos';
 import { formatCatalogPrice, getCatalogPrice, getMinimumCatalogPrice } from '../catalog/prices';
 import { getRegionBundle } from '../catalog/regions';
 import { colors } from '../theme';
+import { CatalogPhoto } from './CatalogPhoto';
 import { CountryFlag } from './CountryFlag';
 
-import { regionPhoto } from '../catalog/photos';
+const regionCardPhotos: Record<string, number> = {
+  'азия': require('../../assets/regions/asia.png'),
+};
+// Use native corner clipping for photos on iOS.
+const RegionCard = Platform.OS === 'ios' ? NativePressable : Pressable;
+
 const preferredFlags: Record<string, string[]> = { 'европа': ['FR', 'IT', 'DE', 'ES'], 'азия': ['JP', 'TH', 'TR'] };
 const designOrder = ['европа', 'азия', 'ближний восток', 'кавказ'];
 
@@ -33,15 +40,14 @@ export function CatalogRegions({ categories, onSelectCategory }: {
         const key = category.title.trim().toLocaleLowerCase('ru');
         const countries = getCountries([category]);
         const bundle = getRegionBundle(category);
-        const image = bundle?.photo_url?.trim() ? { uri: bundle.photo_url.trim() } : key === 'европа' ? require('../../assets/regions/europe.png') : key === 'азия' ? require('../../assets/regions/asia.png') : regionPhoto(category.title);
+        const preferredPhoto = preferredRegionPhoto(category.title);
+        const fallback = preferredPhoto ?? regionCardPhotos[key] ?? regionPhoto(category.title);
         const preferred = (preferredFlags[key] ?? []).flatMap((code) => countries.filter((country) => country.country_iso2?.toUpperCase() === code));
         const flags = [...preferred, ...countries.filter((country) => !preferred.some((flag) => flag.id === country.id))].slice(0, key === 'азия' ? 3 : 4);
         return (
-          <Pressable key={`${category.title}-${index}`} onPress={() => onSelectCategory(category)} accessibilityRole="button" accessibilityLabel={`Открыть категорию: ${category.title}`} style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]} testID={`region-${category.title}`}>
-            {image && <>
-              <Image source={image} style={StyleSheet.absoluteFill} contentFit="cover" accessible={false} />
-              <LinearGradient colors={['rgba(0,0,0,0.85)', 'rgba(0,0,0,0.2)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} />
-            </>}
+          <RegionCard key={`${category.title}-${index}`} onPress={() => onSelectCategory(category)} accessibilityRole="button" accessibilityLabel={`Открыть категорию: ${category.title}`} style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]} testID={`region-${category.title}`}>
+            <CatalogPhoto url={preferredPhoto ? undefined : bundle?.photo_url} fallback={fallback} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={['rgba(0,0,0,0.85)', 'rgba(0,0,0,0.2)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} />
             <Text style={styles.title} numberOfLines={1}>{category.title}</Text>
             <Text style={styles.subtitle}>{countLabel(countries.length)}</Text>
             <View style={styles.flags}>
@@ -54,7 +60,7 @@ export function CatalogRegions({ categories, onSelectCategory }: {
             <View style={styles.price}><Text style={styles.priceText} testID={`region-price-${category.title}`}>
               {formatCatalogPrice(bundle ? getCatalogPrice(bundle) : getMinimumCatalogPrice(category.esims))}
             </Text></View>
-          </Pressable>
+          </RegionCard>
         );
       })}
     </View>

@@ -1,5 +1,6 @@
 import type { CheckoutOrderRequest, CheckoutSelection, CheckoutSummaryResponse, OrderEnvelope, OrdersEnvelope } from '../../../../packages/shared/contracts/checkout';
 import { getApiBaseUrl } from './client';
+import { reportUnauthorized } from '../auth/unauthorized';
 
 export class CheckoutApiError extends Error {
   constructor(message: string, public status: number, public code: string) { super(message); this.name = 'CheckoutApiError'; }
@@ -17,7 +18,8 @@ async function request<T>(path: string, body?: unknown, signal?: AbortSignal, ac
       headers: { Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    const result = await response.json();
+    if (response.status === 401) reportUnauthorized(accessToken);
+    const result = await response.json().catch(error => { if (response.ok) throw error; return null; });
     if (!response.ok) throw new CheckoutApiError(result?.error?.message ?? 'Не удалось оформить заказ. Попробуйте позже.', response.status, result?.error?.code ?? 'checkout_error');
     return result as T;
   } catch (error) {
@@ -36,8 +38,11 @@ export const createCheckoutOrder = (selection: CheckoutOrderRequest, accessToken
 export const getOrder = (id: string, accessToken: string, signal: AbortSignal) => request<OrderEnvelope>(`/api/orders/${encodeURIComponent(id)}`, undefined, signal, accessToken);
 export const getUserOrders = (accessToken: string, signal: AbortSignal, cursor?: string | null) => request<OrdersEnvelope>(`/api/orders?limit=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, undefined, signal, accessToken);
 
-export async function getOrderQr(id: string, accessToken: string): Promise<Blob> {
+export async function getOrderQr(id: string, accessToken: string, signal?: AbortSignal): Promise<Blob> {
   const controller = new AbortController();
+  const abort = () => controller.abort();
+  signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) abort();
   const timeout = setTimeout(() => controller.abort(), 30_000);
   try {
     const response = await fetch(`${getApiBaseUrl()}/api/orders/${encodeURIComponent(id)}/qr`, {
@@ -45,6 +50,7 @@ export async function getOrderQr(id: string, accessToken: string): Promise<Blob>
       signal: controller.signal,
     });
     if (!response.ok) {
+      if (response.status === 401) reportUnauthorized(accessToken);
       const result = await response.json().catch(() => null);
       throw new CheckoutApiError(result?.error?.message ?? 'Не удалось скачать QR-код. Обновите заказ.', response.status, result?.error?.code ?? 'qr_unavailable');
     }
@@ -52,5 +58,5 @@ export async function getOrderQr(id: string, accessToken: string): Promise<Blob>
   } catch (error) {
     if (error instanceof CheckoutApiError) throw error;
     throw new CheckoutApiError('Не удалось скачать QR-код. Проверьте подключение и повторите попытку.', 0, 'qr_unavailable');
-  } finally { clearTimeout(timeout); }
+  } finally { clearTimeout(timeout); signal?.removeEventListener('abort', abort); }
 }

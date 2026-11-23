@@ -1,4 +1,6 @@
+import { GlassActionButton } from './GlassActionButton';
 import { Image } from 'expo-image';
+import { useOnline } from '../service/connectivity';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, Linking, Platform, useWindowDimensions } from 'react-native';
 import { ScrollView } from '../ui/ScrollView';
@@ -14,7 +16,6 @@ const assets = {
   heading: require('../../assets/installation/install-heading.svg'),
   phone: require('../../assets/installation/phone.svg'),
   close: require('../../assets/checkout/close.svg'),
-  share: require('../../assets/installation/share.svg'),
   qr: require('../../assets/installation/qr.svg'),
 };
 const methods = [{ id: 'quick', label: 'Быстро' }, { id: 'qr', label: 'QR-код' }, { id: 'manual', label: 'Вручную' }] as const;
@@ -35,6 +36,7 @@ export function InstallationSheet({ order, topInset, bottomInset, onClose, onRef
   const [copied, setCopied] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [instruction, setInstruction] = useState(false);
+  const online = useOnline();
   const [qrFailed, setQrFailed] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const mounted = useRef(true);
@@ -46,6 +48,7 @@ export function InstallationSheet({ order, topInset, bottomInset, onClose, onRef
   const qrUrl = order.provision?.qr_code_url;
   const expires = order.provision?.qr_code_url_expires;
   const qrReady = !!qrUrl && !qrFailed && (!expires || Date.parse(expires) > Date.now());
+  const canExportQr = qrReady && (qrUrl?.startsWith('file:') ? Platform.OS === 'ios' : online);
 
   useEffect(() => {
     mounted.current = true;
@@ -65,7 +68,7 @@ export function InstallationSheet({ order, topInset, bottomInset, onClose, onRef
     } catch (error) { if (mounted.current) setFailure(error instanceof Error ? error.message : 'Не удалось скопировать. Выделите текст и скопируйте вручную.'); }
   };
   const exportQr = async (intent: 'share' | 'save') => {
-    if (exporting.current || !qrReady || !qrUrl) return;
+    if (exporting.current || !canExportQr || !qrUrl) return;
     exporting.current = true; setWorking(true); setFailure(null); setFeedback(null);
     try {
       const blob = await loadQr();
@@ -82,7 +85,7 @@ export function InstallationSheet({ order, topInset, bottomInset, onClose, onRef
     try { await Linking.openURL(quickUrl); }
     catch { setFailure('Не удалось открыть установку. Попробуйте QR-код или ручной способ.'); }
   };
-  const waiting = <View style={styles.waiting}><Text style={styles.muted}>Данные установки ещё готовятся.</Text><Pressable onPress={onRefresh} disabled={refreshing} accessibilityRole="button" testID="installation-refresh"><Text style={styles.link}>{refreshing ? 'Обновляем…' : 'Обновить данные'}</Text></Pressable></View>;
+  const waiting = <View style={styles.waiting}><Text style={styles.muted}>Данные установки ещё готовятся.</Text><Pressable onPress={onRefresh} disabled={!online || refreshing} accessibilityRole="button" testID="installation-refresh"><Text style={styles.link}>{refreshing ? 'Обновляем…' : 'Обновить данные'}</Text></Pressable></View>;
 
   return <View style={styles.overlay} testID="installation-overlay" accessibilityViewIsModal>
     <Pressable onPress={onClose} style={styles.backdrop} accessibilityRole="button" accessibilityLabel="Закрыть установку" />
@@ -103,7 +106,7 @@ export function InstallationSheet({ order, topInset, bottomInset, onClose, onRef
             <Text style={styles.quickTitle}>В один тап на этом iPhone</Text>
             <Text style={styles.muted}>{quickSupported ? 'iOS 17.4 и новее. Откроются настройки — останется нажать «Продолжить»' : 'На iPhone с iOS 17.4 и новее. На другом устройстве используйте QR-код или ручную установку'}</Text>
           </View>
-          <Pressable onPress={() => void quickInstall()} style={({ pressed }) => [styles.primary, pressed && styles.pressed]} accessibilityRole="button" testID="installation-quick-install"><Text style={styles.primaryText}>{quickSupported ? 'Установить на этот iPhone' : 'Открыть QR-код'}</Text></Pressable>
+          <Pressable onPress={() => void quickInstall()} disabled={quickSupported && !online} style={({ pressed }) => [styles.primary, pressed && styles.pressed]} accessibilityRole="button" testID="installation-quick-install"><Text style={styles.primaryText}>{quickSupported ? 'Установить на этот iPhone' : 'Открыть QR-код'}</Text></Pressable>
         </>}
         {method === 'qr' && <>
           <View style={styles.qrCard} testID="installation-qr-card">
@@ -111,9 +114,14 @@ export function InstallationSheet({ order, topInset, bottomInset, onClose, onRef
             <Text style={styles.muted}>Отсканируйте камерой с телефона, на который ставите eSIM</Text>
           </View>
           <View style={styles.actions}>
-            {([{ intent: 'share', label: 'Поделиться', icon: assets.share }, { intent: 'save', label: 'Сохранить', icon: assets.qr }] as const).map(action => <Pressable key={action.intent} onPress={() => void exportQr(action.intent)} disabled={!qrReady || working} accessibilityRole="button" accessibilityState={{ disabled: !qrReady || working, busy: working }} testID={`installation-${action.intent}`} style={[styles.secondary, (!qrReady || working) && styles.pressed]}>
-              {working ? <ActivityIndicator color={colors.text} size="small" /> : <Image source={action.icon} style={styles.icon} contentFit="contain" accessible={false} />}<Text style={styles.actionText}>{action.label}</Text>
-            </Pressable>)}
+            <GlassActionButton action="share" onPress={() => void exportQr('share')} disabled={!canExportQr || working} busy={working}
+              testID="installation-share" style={styles.secondary} caption={<Text style={styles.actionText}>Поделиться</Text>} />
+            <Pressable onPress={() => void exportQr('save')} disabled={!canExportQr || working} accessibilityRole="button"
+              accessibilityState={{ disabled: !canExportQr || working, busy: working }} testID="installation-save"
+              style={[styles.secondary, (!canExportQr || working) && styles.pressed]}>
+              {working ? <ActivityIndicator color={colors.text} size="small" /> : <Image source={assets.qr} style={styles.icon} contentFit="contain" accessible={false} />}
+              <Text style={styles.actionText}>Сохранить</Text>
+            </Pressable>
           </View>
         </>}
         {method === 'manual' && <>

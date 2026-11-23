@@ -2,7 +2,7 @@ import type { ImageSource } from 'expo-image';
 
 export type RootTabParamList = {
   Search: undefined;
-  Countries: { section?: 'countries' | 'regions' | 'world' } | undefined;
+  Countries: { section?: 'countries' | 'regions' } | undefined;
   MyEsims: undefined;
   Savings: undefined;
   Profile: undefined;
@@ -16,6 +16,8 @@ type TabDefinition = {
   testId: string;
   icon: ImageSource;
   activeIcon: ImageSource;
+  iconWidth: number;
+  iconHeight: number;
 };
 
 export const tabs: readonly TabDefinition[] = [
@@ -23,35 +25,45 @@ export const tabs: readonly TabDefinition[] = [
     name: 'Search',
     label: 'Поиск',
     testId: 'search',
-    icon: require('../../assets/mvp/5dbbc.svg'),
-    activeIcon: require('../../assets/mvp/9706f.svg'),
+    icon: require('../../assets/tab-bar-v3/search-inactive.svg'),
+    activeIcon: require('../../assets/home-v3/tab-search.svg'),
+    iconWidth: 20.434,
+    iconHeight: 19.9997,
   },
   {
     name: 'Countries',
     label: 'Страны',
     testId: 'countries',
-    icon: require('../../assets/mvp/ced92.svg'),
-    activeIcon: require('../../assets/tab-bar/countries-active.svg'),
+    icon: require('../../assets/home-v3/tab-countries.svg'),
+    activeIcon: require('../../assets/tab-bar-v3/countries-active.svg'),
+    iconWidth: 19.9996,
+    iconHeight: 19.9996,
   },
   {
     name: 'MyEsims',
     label: 'Мои eSIM',
     testId: 'esims',
-    icon: require('../../assets/mvp/96aa4.svg'),
-    activeIcon: require('../../assets/mvp/3c6eb.svg'),
+    icon: require('../../assets/home-v3/tab-esims.svg'),
+    activeIcon: require('../../assets/tab-bar-v3/esims-active.svg'),
+    iconWidth: 19.0663,
+    iconHeight: 20,
   },
   {
     name: 'Savings',
     label: 'Копилка',
     testId: 'savings',
-    icon: require('../../assets/mvp/56de7.svg'),
-    activeIcon: require('../../assets/mvp/af298.svg'),
+    icon: require('../../assets/home-v3/tab-savings.svg'),
+    activeIcon: require('../../assets/tab-bar-v3/savings-active.svg'),
+    iconWidth: 20.3073,
+    iconHeight: 19.9999,
   },
   {
     name: 'Profile',
     label: 'Профиль',
     testId: 'profile',
-    icon: require('../../assets/mvp/d26d0.svg'),
-    activeIcon: require('../../assets/mvp/17f46.svg'),
+    icon: require('../../assets/home-v3/tab-profile.svg'),
+    activeIcon: require('../../assets/tab-bar-v3/profile-active.svg'),
+    iconWidth: 19.7228,
+    iconHeight: 19.9999,
   },
 ];

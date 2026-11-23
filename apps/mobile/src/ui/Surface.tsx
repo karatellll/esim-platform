@@ -5,7 +5,7 @@ import { ContentMask } from './ContentMask';
 import { getSurfacePath, hasRoundedCorners, isRoundShape, type CornerStyle } from './squircle';
 
 type Size = { width: number; height: number };
-type SurfaceStyle = ViewStyle & { cornerShape?: string; clipPath?: string };
+type SurfaceStyle = ViewStyle & { cornerShape?: string; clipPath?: string; cornerSmoothing?: number };
 const number = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value : 0;
 const internalKeys = new Set([
   'flexDirection', 'flexWrap', 'justifyContent', 'alignItems', 'alignContent', 'gap', 'rowGap', 'columnGap',
@@ -28,8 +28,9 @@ function geometry(style: SurfaceStyle, measured: Size) {
 }
 function rootStyle(style: SurfaceStyle, measured: Size): SurfaceStyle {
   const shape = geometry(style, measured);
-  if (!shape.smooth) return style;
-  const result: SurfaceStyle = { ...style, cornerShape: undefined, borderCurve: undefined };
+  const { cornerSmoothing, ...nativeStyle } = style;
+  if (!shape.smooth) return nativeStyle;
+  const result: SurfaceStyle = { ...nativeStyle, cornerShape: undefined, borderCurve: undefined };
   if (shape.path) {
     result.backgroundColor = 'transparent';
     // Native/CSS borders must not offset the SVG viewport. Preserve their

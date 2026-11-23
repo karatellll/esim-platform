@@ -9,6 +9,8 @@ import { Text } from '../ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CountryFlag } from '../components/CountryFlag';
+import { ServiceState } from '../components/ServiceState';
+import { useOnline } from '../service/connectivity';
 import { InstallationSheet } from '../components/InstallationSheet';
 import { EsimDetailsView } from '../components/EsimDetailsView';
 import { PurchasedEsimView } from '../components/PurchasedEsimView';
@@ -25,13 +27,14 @@ const spinner = require('../../assets/checkout/payment-spinner.svg');
 export function OrderStatusScreen({ route, navigation }: Props) {
   const status = useOrderStatus(route.params.orderId);
   const auth = useAuth();
+  const online = useOnline();
   const insets = useSafeAreaInsets();
   const attemptedOpen = useRef(false);
   const [openError, setOpenError] = useState<string | null>(null);
-  const [installationOpen, setInstallationOpen] = useState(false);
+  const [installationOpen, setInstallationOpen] = useState(!!route.params.openInstallation);
   const closeInstallation = useCallback(() => setInstallationOpen(false), []);
   const order = status.order;
-  const delivered = !!auth.user && order?.id === route.params.orderId && order.state === 'delivered' && order.payment.state === 'captured';
+  const delivered = !!(auth.user || (!online && auth.offlineUserId)) && order?.id === route.params.orderId && order.state === 'delivered' && order.payment.state === 'captured';
   const pending = order?.state === 'pending_payment';
   const authorizing = pending && ['authorizing', 'authorized'].includes(order?.payment.state ?? '');
   const paymentUrl = order?.payment.url && (!order.payment.expires_at || Date.parse(order.payment.expires_at) > Date.now()) ? order.payment.url : null;
@@ -41,23 +44,30 @@ export function OrderStatusScreen({ route, navigation }: Props) {
     try { await Linking.openURL(url); }
     catch { setOpenError('Не удалось открыть кассу. Нажмите «Перейти к оплате» ещё раз.'); }
   };
-  useEffect(() => { attemptedOpen.current = false; setInstallationOpen(false); }, [route.params.orderId]);
+  useEffect(() => { attemptedOpen.current = false; setInstallationOpen(!!route.params.openInstallation); }, [route.params.orderId, route.params.openInstallation]);
   useEffect(() => {
-    if (auth.accessToken && route.params.openPayment && order?.id === route.params.orderId && paymentUrl && !order.price_changed && !attemptedOpen.current) {
+    if (online && auth.accessToken && route.params.openPayment && order?.id === route.params.orderId && paymentUrl && !order.price_changed && !attemptedOpen.current) {
       attemptedOpen.current = true;
       void pay(paymentUrl);
     }
-  }, [auth.accessToken, order, paymentUrl, route.params.openPayment, route.params.orderId]);
+  }, [online, auth.accessToken, order, paymentUrl, route.params.openPayment, route.params.orderId]);
+
+  if (status.notFound) {
+    return <ServiceState kind="not-found" primary={{ label: 'На главную', onPress: () => navigation.reset({ index: 0, routes: [{ name: 'Main', params: { screen: 'Search' } }] }) }} />;
+  }
 
   if (delivered && order) {
     const topInset = Platform.OS === 'web' ? 48 : insets.top;
     const bottomInset = Platform.OS === 'web' ? 42 : Math.max(insets.bottom, 12) + 8;
     return <View style={styles.screen} testID="screen-order-status">
       <View style={styles.screen} accessibilityElementsHidden={installationOpen} importantForAccessibility={installationOpen ? 'no-hide-descendants' : 'auto'}>
-        {route.params.details ? <EsimDetailsView order={order} topInset={topInset} bottomInset={bottomInset} onBack={() => navigation.goBack()} onInstall={() => setInstallationOpen(true)} onCatalog={() => navigation.navigate('Main', { screen: 'Countries' })} /> : <PurchasedEsimView order={order} topInset={topInset} bottomInset={bottomInset} onInstall={() => setInstallationOpen(true)} onLater={() => navigation.navigate('Main', { screen: 'MyEsims' })} />}
+        {route.params.details ? <EsimDetailsView key={order.id} order={order} initialTopUp={route.params.openTopUp} topInset={topInset} bottomInset={bottomInset} onBack={() => navigation.goBack()} onInstall={() => setInstallationOpen(true)} onCatalog={() => navigation.navigate('Main', { screen: 'Countries' })} /> : <PurchasedEsimView order={order} topInset={topInset} bottomInset={bottomInset} onInstall={() => setInstallationOpen(true)} onLater={() => navigation.navigate('Main', { screen: 'MyEsims' })} />}
       </View>
       {status.error && !installationOpen && <Pressable onPress={status.reload} style={styles.deliveredError} accessibilityRole="button"><Text style={styles.warning}>{status.error} Нажмите, чтобы повторить.</Text></Pressable>}
-      {installationOpen && <InstallationSheet order={order} topInset={topInset} bottomInset={bottomInset} onClose={closeInstallation} onRefresh={status.reload} refreshing={status.loading} statusError={status.error} loadQr={() => {
+      {installationOpen && <InstallationSheet order={order} topInset={topInset} bottomInset={bottomInset} onClose={closeInstallation} onRefresh={status.reload} refreshing={status.loading} statusError={status.error}
+        initialMethod={online ? undefined : order.provision?.qr_code_url ? 'qr' : 'manual'} loadQr={() => {
+        const local = order.provision?.qr_code_url;
+        if (local?.startsWith('file:')) return fetch(local).then(response => response.blob());
         if (!auth.accessToken) return Promise.reject(new Error('Войдите в аккаунт, чтобы скачать QR-код.'));
         return getOrderQr(order.id, auth.accessToken);
       }} />}
@@ -87,8 +97,8 @@ export function OrderStatusScreen({ route, navigation }: Props) {
       {(status.error || openError) && <Text style={styles.warning} accessibilityRole="alert">{status.error ?? openError}</Text>}
     </ScrollView>
     <View style={[styles.footer, { paddingBottom: Platform.OS === 'web' ? 42 : Math.max(insets.bottom, 12) + 8 }]}>
-      {pending && paymentUrl && <Pressable style={styles.pay} onPress={() => void pay(paymentUrl)} accessibilityRole="button" testID="order-open-payment"><Text style={styles.buttonText}>Перейти к оплате · {orderPrice(order!)}</Text></Pressable>}
-      <Pressable style={styles.refresh} onPress={status.reload} accessibilityRole="button" testID="order-refresh">{status.loading ? <ActivityIndicator color={colors.text} /> : <Text style={styles.buttonText}>Проверить состояние</Text>}</Pressable>
+      {pending && paymentUrl && <Pressable style={styles.pay} disabled={!online} onPress={() => void pay(paymentUrl)} accessibilityRole="button" testID="order-open-payment"><Text style={styles.buttonText}>Перейти к оплате · {orderPrice(order!)}</Text></Pressable>}
+      <Pressable style={styles.refresh} disabled={!online} onPress={status.reload} accessibilityRole="button" testID="order-refresh">{status.loading ? <ActivityIndicator color={colors.text} /> : <Text style={styles.buttonText}>Проверить состояние</Text>}</Pressable>
       <Pressable onPress={() => navigation.navigate('Main', { screen: 'MyEsims' })} accessibilityRole="button" testID="order-my-esims"><Text style={styles.back}>Мои eSIM</Text></Pressable>
     </View>
   </View>;

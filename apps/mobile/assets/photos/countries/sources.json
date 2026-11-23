@@ -84,7 +84,10 @@
       "code": "GE",
       "name": "Georgia",
       "search": "https://unsplash.com/s/photos/Georgia%20landscape",
-      "image": "https://images.unsplash.com/photo-1593865409468-2fa73ca58cf7?auto=format&fit=crop&w=900&q=78"
+      "photo": "https://unsplash.com/photos/aerial-view-of-city-buildings-during-daytime-xVLdFIxcDCc",
+      "author": "K T",
+      "retrieved": "2026-11-22",
+      "image": "https://images.unsplash.com/photo-1603350576276-24747f7bbf40?fit=max&fm=jpg&w=1400&q=88"
     },
     {
       "code": "HK",
@@ -288,7 +291,10 @@
       "code": "BY",
       "name": "Belarus",
       "search": "https://unsplash.com/s/photos/Belarus%20landscape",
-      "image": "https://images.unsplash.com/photo-1685559420400-9cd073932fb0?auto=format&fit=crop&w=900&q=78"
+      "photo": "https://unsplash.com/photos/aerial-view-of-city-buildings-during-daytime-UotK6axsG00",
+      "author": "Andrey Kukharenko",
+      "retrieved": "2026-11-22",
+      "image": "https://images.unsplash.com/photo-1628877566690-191a7b5725ac?fit=max&fm=jpg&w=1400&q=88"
     },
     {
       "code": "CH",
@@ -594,7 +600,10 @@
       "code": "KN",
       "name": "St. Kitts & Nevis",
       "search": "https://unsplash.com/s/photos/St.%20Kitts%20%26%20Nevis%20landscape",
-      "image": "https://images.unsplash.com/photo-1635738114076-4d8cea75ad87?auto=format&fit=crop&w=900&q=78"
+      "photo": "https://unsplash.com/photos/tour-bus-drives-on-a-winding-road-through-green-hills-f0jUpW3_fRs",
+      "author": "Dani",
+      "retrieved": "2026-11-22",
+      "image": "https://images.unsplash.com/photo-1757950254407-77bdb0c60f93?fit=max&fm=jpg&w=1400&q=88"
     },
     {
       "code": "KY",
@@ -606,7 +615,10 @@
       "code": "LC",
       "name": "St. Lucia",
       "search": "https://unsplash.com/s/photos/St.%20Lucia%20landscape",
-      "image": "https://images.unsplash.com/photo-1604020183755-3a6b437c820e?auto=format&fit=crop&w=900&q=78"
+      "photo": "https://unsplash.com/photos/a-scenic-view-of-the-pitons-of-st-lucia-island-e1y4IySnZEc",
+      "author": "Faith Panciello",
+      "retrieved": "2026-11-22",
+      "image": "https://images.unsplash.com/photo-1706645616928-1902d9a6b929?fit=max&fm=jpg&w=1400&q=88"
     },
     {
       "code": "MS",
@@ -684,7 +696,10 @@
       "code": "DZ",
       "name": "Algeria",
       "search": "https://unsplash.com/s/photos/Algeria%20landscape",
-      "image": "https://images.unsplash.com/photo-1661001609483-6e687b80b4ca?auto=format&fit=crop&w=900&q=78"
+      "photo": "https://unsplash.com/photos/a-city-next-to-a-body-of-water-OUx8LQltxWs",
+      "author": "Salah Eddine Haddad",
+      "retrieved": "2026-11-21",
+      "image": "https://images.unsplash.com/photo-1668431005532-40b4d2288768?fit=crop&w=900&fm=jpg&q=78"
     },
     {
       "code": "GA",
@@ -732,7 +747,10 @@
       "code": "NE",
       "name": "Niger",
       "search": "https://unsplash.com/s/photos/Niger%20landscape",
-      "image": "https://images.unsplash.com/photo-1626820247794-d4facae27c4a?auto=format&fit=crop&w=900&q=78"
+      "photo": "https://unsplash.com/photos/a-large-area-of-land-with-roads-oosrKe_BcbQ",
+      "author": "Michel Isamuna",
+      "retrieved": "2026-11-22",
+      "image": "https://images.unsplash.com/photo-1669749713424-e7a0dbf605e6?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&dl=michel-isamuna-oosrKe_BcbQ-unsplash.jpg"
     },
     {
       "code": "NG",

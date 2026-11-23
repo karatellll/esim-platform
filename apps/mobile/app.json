@@ -2,18 +2,29 @@
   "expo": {
     "name": "ТурСим",
     "slug": "tursim",
+    "scheme": "tursim",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#141416",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.karatel.tursim",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
-      "predictiveBackGestureEnabled": true
+      "predictiveBackGestureEnabled": true,
+      "package": "com.karatel.tursim"
     },
     "plugins": [
       "expo-image"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "07e2ce4d-f2d2-49e5-9fd7-8265b10ca27e"
+      }
+    }
   }
 }

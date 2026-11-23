@@ -2,6 +2,7 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
+import { useMemo, type ReactNode } from 'react';
 import { Platform } from 'react-native';
 import { ScrollView } from '../ui/ScrollView';
 import { Pressable, View } from '../ui/Surface';
@@ -9,57 +10,104 @@ import { fonts, StyleSheet } from '../ui/design';
 import { Text } from '../ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { LoadFailure } from '../components/ServiceState';
+import { useOnline } from '../service/connectivity';
 import { useAuth } from '../auth/AuthProvider';
 import type { RootStackParamList } from '../navigation/stack';
 import type { RootTabParamList } from '../navigation/tabs';
 import { colors, getTabBarBottom, tabBarLayout } from '../theme';
 import { useUserOrders } from '../hooks/useUserOrders';
-import { PurchasedOrders } from '../components/PurchasedOrders';
+import { PurchasedOrders, type OrderAction } from '../components/PurchasedOrders';
 import { MyEsimsSkeleton } from '../components/SkeletonLayouts';
 import { useSkeletonGate } from '../hooks/useSkeletonGate';
+import { useCatalogCategories } from '../hooks/useCatalogCategories';
+import type { CatalogEsim } from '../../../../packages/shared/contracts/catalog';
 
 type Navigation = CompositeNavigationProp<BottomTabNavigationProp<RootTabParamList>, NativeStackNavigationProp<RootStackParamList>>;
 
 const assets = {
   heading: require('../../assets/my-esims/heading.svg'),
+  plus: require('../../assets/my-esims/plus.svg'),
   mascot: require('../../assets/my-esims/sleeping-esim.svg'),
   emptyTitle: require('../../assets/my-esims/empty-title.svg'),
   sticker: require('../../assets/my-esims/empty-sticker.svg'),
   emptyWord: require('../../assets/my-esims/empty-word.svg'),
 };
 
-// Figma: empty state 91:5500; purchased rows follow the surfaces of 64:4276.
-export function MyEsimsScreen() {
-  const navigation = useNavigation<Navigation>();
+// Figma: populated screen 433:12704, empty screen 91:5500.
+export function MyEsimsLayout({ populated, onAdd, children }: {
+  populated: boolean;
+  onAdd?: () => void;
+  children: (insets: { leftInset: number; rightInset: number }) => ReactNode;
+}) {
   const insets = useSafeAreaInsets();
-  const auth = useAuth();
-  const orders = useUserOrders();
-  const loading = auth.user !== null && orders.state.status === 'loading';
-  const skeleton = useSkeletonGate(loading);
   const topInset = Platform.OS === 'web' ? 48 : insets.top;
   const bottomInset = getTabBarBottom(insets.bottom, Platform.OS === 'web');
+  const leftInset = Math.max(insets.left, 12);
+  const rightInset = Math.max(insets.right, 12);
 
   return <View style={styles.screen} testID="screen-esims">
     <ScrollView style={styles.screen} testID="my-esims-scroll" showsVerticalScrollIndicator={false}
       contentInsetAdjustmentBehavior="never" contentContainerStyle={[
         styles.content,
-        { paddingTop: topInset + 16, paddingBottom: Math.max(120, bottomInset + tabBarLayout.height + 20),
-          paddingLeft: Math.max(insets.left, 12), paddingRight: Math.max(insets.right, 12) },
+        { paddingTop: topInset + (populated ? 12 : 16), paddingBottom: Math.max(120, bottomInset + tabBarLayout.height + 20),
+          paddingLeft: leftInset, paddingRight: rightInset },
       ]}>
-      <View style={styles.header} accessibilityRole="header" accessibilityLabel="Мои eSIM" testID="my-esims-heading">
-        <View style={styles.headingSlot}>
+      <View style={[styles.header, populated && styles.populatedHeader]} testID="my-esims-heading">
+        <View style={styles.headingSlot} accessibilityRole="header" accessibilityLabel="Мои eSIM" accessible>
           <Image source={assets.heading} style={styles.heading} contentFit="contain" accessible={false} />
         </View>
-        <Pressable onPress={() => navigation.navigate('Countries')} accessibilityRole="button" accessibilityLabel="Добавить eSIM" style={styles.addButton}><Text style={styles.addText}>+</Text></Pressable>
+        {onAdd && <Pressable onPress={onAdd} accessibilityRole="button" accessibilityLabel="Добавить eSIM" testID="my-esims-add"
+          style={({ pressed }) => [styles.addButton, populated && styles.populatedAdd, pressed && styles.pressed]}>
+          <Image source={assets.plus} style={styles.addIcon} accessible={false} />
+        </Pressable>}
       </View>
+      {children({ leftInset, rightInset })}
+    </ScrollView>
+  </View>;
+}
 
-      {auth.user && orders.state.status === 'loading' ? skeleton.timedOut ? <View style={styles.status}><Text style={styles.description}>Не удалось загрузить ваши eSIM.</Text><Pressable onPress={() => { skeleton.restart(); orders.reload(); }} accessibilityRole="button" style={[styles.button, styles.signIn]}><Text style={styles.buttonText}>Повторить</Text></Pressable></View> : skeleton.visible ? <MyEsimsSkeleton /> : null
-        : auth.user && orders.state.status === 'error' ? <View style={styles.status} testID="my-esims-load-error"><Text style={styles.description}>{orders.state.message}</Text><Pressable onPress={orders.reload} accessibilityRole="button" style={[styles.button, styles.signIn]}><Text style={styles.buttonText}>Повторить</Text></Pressable></View>
-        : auth.user && orders.state.status === 'ready' && orders.state.response.data.length > 0 ? <>
-          <PurchasedOrders orders={orders.state.response.data} onSelect={(orderId) => navigation.navigate('OrderStatus', { orderId, details: true })} />
-          {orders.state.error && <Text style={styles.description}>{orders.state.error}</Text>}
-          {orders.state.response.meta.has_more && orders.state.response.meta.next_cursor && <Pressable onPress={() => void orders.loadMore()} disabled={orders.state.loadingMore} accessibilityRole="button" testID="my-esims-load-more" style={[styles.button, styles.signIn]}><Text style={styles.buttonText}>{orders.state.loadingMore ? 'Загружаем…' : 'Ещё заказы'}</Text></Pressable>}
-          <Pressable onPress={() => navigation.navigate('Countries')} accessibilityRole="button" style={[styles.button, styles.chooseCountry]}><Text style={styles.buttonText}>Выбрать новую eSIM</Text></Pressable>
+function CatalogPurchasedOrders(props: Omit<Parameters<typeof PurchasedOrders>[0], 'countries'>) {
+  const { state } = useCatalogCategories();
+  const countries = useMemo(() => {
+    const byId = new Map<string, CatalogEsim>();
+    if (state.status === 'ready') {
+      for (const category of state.categories) {
+        for (const country of category.esims) byId.set(country.id, country);
+      }
+    }
+    return byId;
+  }, [state]);
+  return <PurchasedOrders {...props} countries={countries} />;
+}
+
+export function MyEsimsScreen() {
+  const navigation = useNavigation<Navigation>();
+  const auth = useAuth();
+  const online = useOnline();
+  const hasAccount = !!(auth.user || (!online && auth.offlineUserId));
+  const orders = useUserOrders();
+  const loading = (auth.loading || hasAccount) && orders.state.status === 'loading';
+  const skeleton = useSkeletonGate(loading);
+  const failed = hasAccount && (orders.state.status === 'error' || skeleton.timedOut);
+  const state = hasAccount && orders.state.status === 'ready' && orders.state.response.data.length ? orders.state : null;
+  const select = (orderId: string, action: OrderAction) => navigation.push('OrderStatus', {
+    orderId, details: true,
+    ...(action === 'install' ? { openInstallation: true } : action === 'top-up' ? { openTopUp: true } : {}),
+  });
+
+  return <MyEsimsLayout populated={!!state} onAdd={failed ? undefined : () => navigation.navigate('Countries')}>
+    {insets => failed ? <LoadFailure title="eSIM не загрузились" card testID="my-esims-load-error"
+        onRetry={() => { skeleton.restart(); orders.reload(); }} />
+        : loading ? skeleton.visible ? <MyEsimsSkeleton /> : null
+        : state ? <>
+          <CatalogPurchasedOrders {...insets} orders={state.response.data.map(order => ({ ...order, ...state.dates[order.id] }))} onSelect={select} />
+          {state.error && <>
+            <Text style={styles.description}>{state.error}</Text>
+            {!state.response.meta.has_more && <Pressable onPress={orders.reload} accessibilityRole="button"
+              style={[styles.button, styles.signIn]}><Text style={styles.buttonText}>Повторить</Text></Pressable>}
+          </>}
+          {state.response.meta.has_more && state.response.meta.next_cursor && <Pressable onPress={() => void orders.loadMore()} disabled={state.loadingMore} accessibilityRole="button" testID="my-esims-load-more" style={[styles.button, styles.signIn]}><Text style={styles.buttonText}>{state.loadingMore ? 'Загружаем…' : 'Ещё заказы'}</Text></Pressable>}
         </> : <View style={styles.emptyCard} testID="my-esims-empty">
         <Image source={assets.mascot} style={styles.mascot} contentFit="contain" accessible={false} testID="my-esims-mascot" />
         <View style={styles.emptyHeading} accessibilityRole="header" accessibilityLabel="Тут пока пусто">
@@ -72,8 +120,8 @@ export function MyEsimsScreen() {
           </View>
         </View>
 
-        <Text style={styles.description} numberOfLines={auth.user ? 1 : 2} adjustsFontSizeToFit minimumFontScale={0.8} testID="my-esims-description">
-          {auth.user ? 'Купите eSIM — она появится здесь.' : 'Купите eSIM — она появится здесь.\nУже покупали? Войдите по почте'}
+        <Text style={styles.description} numberOfLines={hasAccount ? 1 : 2} adjustsFontSizeToFit minimumFontScale={0.8} testID="my-esims-description">
+          {hasAccount ? 'Купите eSIM — она появится здесь.' : 'Купите eSIM — она появится здесь.\nУже покупали? Войдите по почте'}
         </Text>
 
         <View style={styles.actions}>
@@ -81,29 +129,29 @@ export function MyEsimsScreen() {
             style={({ pressed }) => [styles.button, styles.chooseCountry, pressed && styles.pressed]}>
             <Text style={styles.buttonText}>Выбрать страну</Text>
           </Pressable>
-          {!auth.user && <Pressable onPress={() => navigation.navigate('EmailSignIn')} disabled={auth.loading}
+          {!hasAccount && <Pressable onPress={() => navigation.navigate('EmailSignIn')} disabled={auth.loading || !online}
             accessibilityRole="button" accessibilityState={{ disabled: auth.loading }} testID="my-esims-sign-in"
             style={({ pressed }) => [styles.button, styles.signIn, (pressed || auth.loading) && styles.pressed]}>
             <Text style={styles.buttonText}>Войти</Text>
           </Pressable>}
         </View>
       </View>}
-    </ScrollView>
-  </View>;
+  </MyEsimsLayout>;
 }
 
 const fontFamily = fonts.text;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  status: { borderRadius: 28, borderCurve: 'continuous', padding: 24, gap: 16, backgroundColor: colors.surface },
   content: { width: '100%', gap: 12 },
   header: { height: 42, paddingHorizontal: 12, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  populatedHeader: { height: 44 },
   headingSlot: { width: 137, height: 38 },
   // Text SVGs retain Figma's original glyphs. Export crops are positioned using
   // their render bounds inside the original text slots, without scaling.
   heading: { position: 'absolute', left: 1.743164, top: 8.496094, width: 134, height: 22 },
   addButton: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
-  addText: { color: colors.text, fontSize: 23, lineHeight: 27, fontWeight: '500' },
+  populatedAdd: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(244,244,247,0.15)' },
+  addIcon: { width: 20, height: 20 },
   emptyCard: { width: '100%', paddingTop: 28, paddingBottom: 20, paddingHorizontal: 20, gap: 14,
     alignItems: 'center', backgroundColor: colors.surface, borderRadius: 28 },
   mascot: { width: 118, height: 126 },

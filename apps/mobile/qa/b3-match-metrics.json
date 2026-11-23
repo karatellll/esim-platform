@@ -1,0 +1,18 @@
+{
+  "fileKey": "PWdKnO2WHAIS0NE18vlgL4",
+  "nodeId": "475:11924",
+  "viewport": {
+    "width": 375,
+    "height": 812
+  },
+  "meanAbsoluteChannelError": {
+    "hero": 3.256,
+    "search": 0.647,
+    "world": 2.748,
+    "regions": 5.077,
+    "popularHeading": 2.596,
+    "countriesWithoutPrices": 2.204,
+    "tabBar": 8.858
+  },
+  "notes": "Raw RGB comparison includes antialiasing and platform material differences. API prices excluded from country crop. Web blur approximates Figma GLASS; native iOS appearance requires device verification."
+}

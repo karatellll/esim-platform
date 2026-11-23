@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { getCorners, getSurfacePath, isRoundShape } from '../src/ui/squircle.ts';
+test('shared surfaces default to smoothing 100% and still support explicit overrides', () => {
+ const standard = getSurfacePath(351, 120, { borderRadius: 20 });
+ assert.equal(standard, getSurfacePath(351, 120, { borderRadius: 20, cornerSmoothing: 1 }));
+ assert.notEqual(standard, getSurfacePath(351, 120, { borderRadius: 20, cornerSmoothing: 0.6 }));
+});
 test('card, button, tab bar and top-rounded sheet have closed smooth finite contours',()=>{
  for(const [w,h,s] of [[351,112,{borderRadius:20}],[327,52,{borderRadius:16}],[351,64,{borderRadius:24}],[375,758,{borderTopLeftRadius:32,borderTopRightRadius:32}]]){
   const d=getSurfacePath(w,h,s);assert.match(d,/[cC]/);assert.ok(d.trim().toLowerCase().endsWith('z'));assert.ok(!/NaN|Infinity/.test(d));

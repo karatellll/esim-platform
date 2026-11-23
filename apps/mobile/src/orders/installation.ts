@@ -31,10 +31,10 @@ const units: Record<string, number> = { GB: 1000, MB: 1, KB: 0.001 };
 const label: Record<string, string> = { GB: 'ГБ', MB: 'МБ', KB: 'КБ' };
 const number = (value: number) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(value);
 
-export function trafficDisplay(order: OrderData) {
+export function trafficDisplay(order: Pick<OrderData, 'tariff' | 'remaining'> & Partial<Pick<OrderData, 'items'>>) {
   const total = order.tariff.data_amount;
   const remaining = order.remaining;
-  const unlimited = total.amount === 0 && order.items.some(item => /безлимит|unlimited/i.test(item.display_name));
+  const unlimited = total.amount === 0 && order.items?.some(item => /безлимит|unlimited/i.test(item.display_name));
   const factor = units[remaining?.unit ?? ''] && units[total.unit] ? units[remaining!.unit] / units[total.unit] : remaining?.unit === total.unit ? 1 : null;
   const observed = remaining !== null && factor !== null ? remaining.amount * factor : null;
   const amount = observed === null ? total.amount : observed;

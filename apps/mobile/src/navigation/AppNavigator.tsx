@@ -6,6 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { FloatingTabBar } from '../components/FloatingTabBar';
 import { MyEsimsScreen } from '../screens/MyEsimsScreen';
 import { HomeScreen } from '../screens/HomeScreen';
+import { TripSearchScreen } from '../screens/TripSearchScreen';
 import { CountriesScreen } from '../screens/CountriesScreen';
 import { CountryTariffsScreen } from '../screens/CountryTariffsScreen';
 import { RegionTariffsScreen } from '../screens/RegionTariffsScreen';
@@ -18,6 +19,7 @@ import { ProfileEditScreen } from '../screens/ProfileEditScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { CheckoutScreen } from '../screens/CheckoutScreen';
 import { OrderStatusScreen } from '../screens/OrderStatusScreen';
+import { NotFoundScreen, SessionExpiredScreen, TariffLinkScreen } from '../screens/ServiceScreens';
 import type { RootStackParamList } from './stack';
 import { colors } from '../theme';
 import { type RootTabParamList, tabs } from './tabs';
@@ -54,6 +56,7 @@ function MainTabs() {
 export function AppNavigator() {
   return <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
     <Stack.Screen name="Main" component={MainTabs} />
+    <Stack.Screen name="TripSearch" component={TripSearchScreen} options={{ gestureEnabled: false }} />
     <Stack.Screen name="Loyalty" component={LoyaltyScreen} />
     <Stack.Screen name="Help" component={HelpScreen} />
     <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
@@ -64,5 +67,8 @@ export function AppNavigator() {
     <Stack.Screen name="RegionTariffs" component={RegionTariffsScreen} />
     <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ presentation: 'transparentModal', animation: 'fade', contentStyle: { backgroundColor: 'transparent' } }} />
     <Stack.Screen name="OrderStatus" component={OrderStatusScreen} />
+    <Stack.Screen name="NotFound" component={NotFoundScreen} />
+    <Stack.Screen name="SessionExpired" component={SessionExpiredScreen} options={{ gestureEnabled: false }} />
+    <Stack.Screen name="TariffLink" component={TariffLinkScreen} />
   </Stack.Navigator>;
 }

@@ -1,7 +1,7 @@
 import type { CatalogEsim } from '../../../../packages/shared/contracts/catalog';
 import { Image } from 'expo-image';
 import { useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, Modal, Platform } from 'react-native';
+import { ActivityIndicator, Keyboard, Modal, Platform, View as NativeView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { countLabel } from '../catalog/catalog';
 import { highlightCountryName, searchCountries } from '../catalog/countrySearch';
@@ -56,7 +56,7 @@ export function CatalogCountrySheet({ countries, title, subtitle, onClose, onSel
             <Image source={require('../../assets/countries/sheet-close.svg')} style={s.icon} accessible={false} />
           </Pressable>
         </View>
-        <View style={[s.search, (focused || searching) && s.searchFocused]} testID={`${testID}-search-field`}>
+        <NativeView style={[s.search, (focused || searching) && s.searchFocused]} testID={`${testID}-search-field`}>
           <Image source={require('../../assets/countries/search.svg')} style={s.icon} accessible={false} />
           <TextInput ref={input} value={query} onChangeText={setQuery} placeholder="Найти страну" placeholderTextColor="rgba(255,255,255,0.4)"
             onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} autoCorrect={false} autoCapitalize="none" returnKeyType="search"
@@ -65,7 +65,7 @@ export function CatalogCountrySheet({ countries, title, subtitle, onClose, onSel
           {!!query && <Pressable hitSlop={12} onPress={() => { setQuery(''); input.current?.focus(); }} accessibilityRole="button" accessibilityLabel="Очистить поиск" testID={`${testID}-clear`}>
             <Image source={require('../../assets/countries/search-clear.svg')} style={s.clearIcon} accessible={false} />
           </Pressable>}
-        </View>
+        </NativeView>
         <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
           {loading ? <ActivityIndicator color={colors.tariffAccent} accessibilityLabel="Загрузка стран" style={{ marginVertical: 24 }} /> : error ? <View style={s.support}>
             <Text style={s.network} accessibilityRole="alert">{error}</Text>

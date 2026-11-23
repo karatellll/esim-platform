@@ -3,12 +3,17 @@ import { AppState } from 'react-native';
 
 import type { AuthUser, SessionResponse } from '../../../../packages/shared/contracts/auth';
 import { AuthApiError, updateProfile, logoutAuth, refreshAuth, sessionClient, verifyEmailCode } from '../api/auth';
-import { loadRefreshToken, saveRefreshToken } from './sessionStorage';
+import { loadOfflineUser, loadRefreshToken, saveOfflineUser, saveRefreshToken } from './sessionStorage';
+import { eraseOfflineOrders } from '../orders/offlineOrders';
+import { onUnauthorized } from './unauthorized';
 
 type AuthContextValue = {
   user: AuthUser | null;
   accessToken: string | null;
   loading: boolean;
+  expired: boolean;
+  offlineUserId: string | null;
+  acknowledgeExpiry: () => void;
   restoreError: string | null;
   retryRestore: () => Promise<void>;
   signIn: (challengeId: string, code: string) => Promise<void>;
@@ -20,6 +25,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<SessionResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expired, setExpired] = useState(false);
+  const [offlineUserId, setOfflineUserId] = useState<string | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const sessionRef = useRef<SessionResponse | null>(null);
   const pendingRefresh = useRef<Promise<void> | null>(null);
@@ -32,6 +39,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
     sessionRef.current = next;
     setSession(next);
+    setExpired(false);
+    setOfflineUserId(next.user.id);
+    await saveOfflineUser(next.user.id).catch(() => {});
     setRestoreError(null);
   }, []);
 
@@ -39,13 +49,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (pendingRefresh.current) return pendingRefresh.current;
     if (signingOut.current) return Promise.resolve();
     const work = (async () => {
+      const remembered = await loadOfflineUser().catch(() => null);
       try {
         const token = await loadRefreshToken();
-        if (sessionClient === 'native' && !token) return;
+        if (sessionClient === 'native' && !token) {
+          if (remembered) {
+            await saveOfflineUser(null).catch(() => {});
+            setExpired(true);
+          }
+          return;
+        }
+        if (sessionClient === 'native') setOfflineUserId(remembered);
         await accept(await refreshAuth(token));
       } catch (error) {
         if (error instanceof AuthApiError && error.status === 401) {
-          await saveRefreshToken(null);
+          await saveRefreshToken(null).catch(() => {});
+          await saveOfflineUser(null).catch(() => {});
+          setExpired(!!(remembered || sessionRef.current));
+          setOfflineUserId(null);
           sessionRef.current = null;
           setSession(null);
           setRestoreError(null);
@@ -63,6 +84,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [accept]);
 
   useEffect(() => { void restore().catch(() => {}); }, [restore]);
+  useEffect(() => onUnauthorized(token => {
+    if (!signingOut.current && sessionRef.current?.access_token === token) void restore().catch(() => {});
+  }), [restore]);
   useEffect(() => {
     if (!session) return;
     let stopped = false;
@@ -97,8 +121,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const token = await loadRefreshToken();
       await logoutAuth(sessionRef.current?.access_token || null, token);
       await saveRefreshToken(null);
+      eraseOfflineOrders(sessionRef.current?.user.id ?? await loadOfflineUser().catch(() => null));
+      await saveOfflineUser(null).catch(() => {});
       sessionRef.current = null;
       setSession(null);
+      setOfflineUserId(null);
+      setExpired(false);
       setRestoreError(null);
     } finally { signingOut.current = false; }
   }, []);
@@ -113,7 +141,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setSession(next);
   };
 
-  return <AuthContext.Provider value={{ user: session?.user || null, accessToken: session?.access_token || null, loading, restoreError, retryRestore: restore, signIn, signOut, saveProfile }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user: session?.user || null, accessToken: session?.access_token || null, loading, expired, offlineUserId,
+    acknowledgeExpiry: () => setExpired(false), restoreError, retryRestore: restore, signIn, signOut, saveProfile }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

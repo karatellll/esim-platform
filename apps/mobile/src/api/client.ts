@@ -1,7 +1,13 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { reportUnauthorized } from '../auth/unauthorized';
 
-
+export class ApiRequestError extends Error {
+  constructor(message: string, public status: number, public code?: string) {
+    super(message);
+    this.name = 'ApiRequestError';
+  }
+}
 
 export function getApiBaseUrl(): string {
   const configuredUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
@@ -17,7 +23,7 @@ export function getApiBaseUrl(): string {
   throw new Error('Не удалось подключиться к каталогу. Попробуйте позже.');
 }
 
-export async function requestApi<T>(path: string, signal: AbortSignal): Promise<T> {
+export async function requestApi<T>(path: string, signal: AbortSignal, accessToken?: string): Promise<T> {
   const controller = new AbortController();
   const abort = () => controller.abort();
   signal.addEventListener('abort', abort, { once: true });
@@ -28,16 +34,21 @@ export async function requestApi<T>(path: string, signal: AbortSignal): Promise<
   try {
     const response = await fetch(`${getApiBaseUrl()}${path}`, {
       signal: controller.signal,
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
     });
-    const body: unknown = await response.json();
+    if (response.status === 401) reportUnauthorized(accessToken);
+    const body: unknown = await response.json().catch((error) => {
+      if (response.ok) throw error;
+      return null;
+    });
 
     if (!response.ok) {
-      const error = body as { error?: { message?: unknown } } | null;
-      throw new Error(
+      const error = body as { error?: { message?: unknown; code?: string } } | null;
+      throw new ApiRequestError(
         typeof error?.error?.message === 'string'
           ? error.error.message
-          : 'Не удалось загрузить направления. Попробуйте ещё раз.'
+          : 'Не удалось загрузить направления. Попробуйте ещё раз.',
+        response.status, error?.error?.code,
       );
     }
 
