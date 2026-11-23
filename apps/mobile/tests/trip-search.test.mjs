@@ -39,18 +39,24 @@ const prices = {
   XG: ready(tariff('world-5', 5, 7, 1290), tariff('world-15-days', 10, 15, 1900)),
 };
 
-async function mount(initialPrices = prices, catalogCategories = categories) {
+async function mount(initialPrices = prices, catalogCategories = categories, platform = 'web') {
   let data = initialPrices;
+  let catalogState = catalogCategories ? { status: 'ready', categories: catalogCategories } : { status: 'loading' };
   let requests = [];
   let retries = 0;
+  let inputFocuses = 0;
   const navigations = [];
   const cache = new Map();
-  const navigation = { navigate: (...args) => navigations.push(args), goBack: () => navigations.push(['back']) };
+  const listeners = new Map();
+  const navigation = {
+    navigate: (...args) => navigations.push(args), goBack: () => navigations.push(['back']), isFocused: () => true,
+    addListener: (event, listener) => { listeners.set(event, listener); return () => listeners.delete(event); },
+  };
   const host = type => props => React.createElement(type, {
     ...props, style: typeof props.style === 'function' ? props.style({ pressed: false }) : props.style,
   }, props.children);
   const mocks = {
-    'react-native': { Platform: { OS: 'web' }, View: host('View'), Keyboard: { dismiss() {} }, KeyboardAvoidingView: host('KeyboardAvoidingView') },
+    'react-native': { Platform: { OS: platform }, View: host('View'), Keyboard: { dismiss() {}, addListener: () => ({ remove() {} }) }, KeyboardAvoidingView: host('KeyboardAvoidingView') },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ left: 0, right: 0, top: 0, bottom: 0 }) },
     '@react-navigation/native': { useFocusEffect: React.useEffect },
     'expo-image': { Image: 'Image' },
@@ -59,10 +65,11 @@ async function mount(initialPrices = prices, catalogCategories = categories) {
     '/ui/Text': { Text: 'Text', TextInput: 'TextInput' },
     '/ui/ScrollView': { ScrollView: host('ScrollView') },
     '/components/GlassActionButton': { GlassActionButton: host('GlassActionButton') },
+    './Skeleton': { SkeletonBlock: 'SkeletonBlock', SkeletonGroup: 'SkeletonGroup' },
     '/auth/AuthProvider': { useAuth: () => ({ accessToken: null }) },
     '/api/coverage': { coverageSubscription() { throw new Error('Signed-out request'); } },
     '/hooks/useUserOrders': { useUserOrders: () => ({ state: { status: 'signed-out' } }) },
-    '/hooks/useCatalogCategories': { useCatalogCategories: () => ({ state: { status: 'ready', categories: catalogCategories } }) },
+    '/hooks/useCatalogCategories': { useCatalogCategories: () => ({ state: catalogState }) },
     '/hooks/useTripTariffs': { useTripTariffs: (targets, enabled) => {
       if (enabled) requests = targets.map(target => target.id);
       return { data, reload: () => { retries++; } };
@@ -84,23 +91,62 @@ async function mount(initialPrices = prices, catalogCategories = categories) {
       }
       return require(name);
     };
-    new Function('require', 'module', 'exports', code)(localRequire, module, module.exports);
+    const hermesIntl = Object.create(Intl, { PluralRules: { value: undefined } });
+    new Function('require', 'module', 'exports', 'Intl', code)(localRequire, module, module.exports, hermesIntl);
     return module.exports;
   }
   const { TripSearchScreen } = load(path.resolve(import.meta.dirname, '../src/screens/TripSearchScreen.tsx'));
   let renderer;
   const render = () => React.createElement(TripSearchScreen, { navigation });
-  await act(() => { renderer = TestRenderer.create(render()); });
+  await act(() => {
+    renderer = TestRenderer.create(render(), {
+      createNodeMock: element => element.type === 'TextInput' ? { focus: () => { inputFocuses++; } } : null,
+    });
+  });
   const node = id => renderer.root.findAll(n => typeof n.type === 'string' && n.props.testID === id)[0];
   return {
     node, navigations, requests: () => requests, retries: () => retries,
+    inputFocuses: () => inputFocuses,
+    transitionEnd: closing => act(() => listeners.get('transitionEnd')?.({ data: { closing } })),
     press: id => act(() => node(id).props.onPress()),
     query: text => act(() => node('trip-query').props.onChangeText(text)),
     update: next => act(() => { data = next; renderer.update(render()); }),
+    updateCatalog: next => act(() => { catalogState = next; renderer.update(render()); }),
     close: () => act(() => renderer.unmount()),
     offerIds: () => renderer.root.findAll(n => n.type === 'Pressable' && n.props.testID?.startsWith('trip-offer-')).map(n => n.props.testID),
   };
 }
+
+test('opening search shows skeletons until destinations load and preserves a query typed meanwhile', async () => {
+  const app = await mount(prices, null, 'ios');
+  try {
+    assert.ok(app.node('trip-region-rail-skeleton'));
+    assert.ok(app.node('trip-countries-skeleton'));
+    assert.equal(app.node('trip-region-rail'), undefined);
+    await app.query('Италия');
+    assert.equal(app.node('trip-region-rail-skeleton'), undefined);
+    assert.ok(app.node('trip-countries-skeleton'));
+    assert.equal(app.node('trip-query-results'), undefined);
+    await app.updateCatalog({ status: 'ready', categories });
+    assert.equal(app.node('trip-destinations-loading'), undefined);
+    assert.equal(app.node('trip-query').props.value, 'Италия');
+    assert.ok(app.node('trip-country-IT'));
+    await app.press('trip-clear');
+    assert.ok(app.node('trip-region-rail'));
+  } finally { await app.close(); }
+});
+
+test('iOS opens the destination keyboard only after the opening transition', async () => {
+  const app = await mount(prices, categories, 'ios');
+  try {
+    assert.equal(app.node('trip-query').props.autoFocus, false);
+    assert.equal(app.inputFocuses(), 0);
+    await app.transitionEnd(true);
+    assert.equal(app.inputFocuses(), 0);
+    await app.transitionEnd(false);
+    assert.equal(app.inputFocuses(), 1);
+  } finally { await app.close(); }
+});
 
 test('the three questions preserve and edit answers, rank a regional trip, and open the chosen checkout', async () => {
   const app = await mount({});
@@ -150,11 +196,13 @@ test('one country ranks suitable traffic, retries without losing answers and sho
     assert.equal(app.retries(), 1);
     await app.update(prices);
     assert.deepEqual(app.offerIds(), ['trip-offer-turkey-5', 'trip-offer-turkey-10', 'trip-offer-turkey-unlimited']);
+    assert.equal(app.node('trip-heading').props.children, 'Нашли 3 варианта');
     assert.ok(app.node('trip-recommended-badge'));
     assert.ok(app.node('trip-filter-1'));
     assert.equal(app.node('trip-filter-30'), undefined);
     await app.press('trip-filter-1');
     assert.deepEqual(app.offerIds(), ['trip-offer-turkey-1-day']);
+    assert.equal(app.node('trip-heading').props.children, 'Нашли 1 вариант');
     await app.press('trip-filter-7');
     await app.press('trip-offer-turkey-5');
     assert.deepEqual(app.navigations, [['Checkout', { country: turkey, tariff: turkey5 }]]);

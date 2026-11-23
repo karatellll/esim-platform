@@ -3,7 +3,7 @@ import type { CatalogTariff } from '../../../../packages/shared/contracts/catalo
 export type Duration = CatalogTariff['duration'];
 export const durationKey = (duration: Duration): string => `${duration.unit}:${duration.amount}`;
 
-function plural(amount: number, one: string, few: string, many: string): string {
+export function plural(amount: number, one: string, few: string, many: string): string {
   const value = Math.abs(amount) % 100;
   const last = value % 10;
   return value >= 11 && value <= 14 ? many : last === 1 ? one : last >= 2 && last <= 4 ? few : many;

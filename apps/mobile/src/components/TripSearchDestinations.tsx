@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
-import { useMemo } from 'react';
-import { Keyboard } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import { Keyboard, Platform } from 'react-native';
 import type { CatalogCategory, CatalogEsim } from '../../../../packages/shared/contracts/catalog';
 import { countLabel } from '../catalog/catalog';
 import { getGlobalBundle } from '../catalog/global';
@@ -15,6 +15,7 @@ import { ScrollView } from '../ui/ScrollView';
 import { Pressable, View } from '../ui/Surface';
 import { Text, TextInput } from '../ui/Text';
 import { CountryFlag } from './CountryFlag';
+import { SkeletonBlock, SkeletonGroup } from './Skeleton';
 import { TripSearchCoverage } from './TripSearchExtras';
 import { DestinationIcon, SearchButton, searchArtwork, searchRegions, searchSurfaces } from './TripSearchUI';
 
@@ -25,6 +26,7 @@ type Props = {
   categories: readonly CatalogCategory[];
   selected: readonly CatalogEsim[];
   query: string;
+  focusAfterTransition: boolean;
   onQuery: (value: string) => void;
   onClear: () => void;
   onToggle: (country: CatalogEsim) => void;
@@ -44,9 +46,41 @@ function CountryName({ name, query }: { name: string; query: string }) {
   return <Text style={styles.rowTitle}>{name.slice(0, index)}<Text style={styles.match}>{name.slice(index, index + query.length)}</Text>{name.slice(index + query.length)}</Text>;
 }
 
+function DestinationsSkeleton({ searching, hasSelection }: { searching: boolean; hasSelection: boolean }) {
+  return <View testID="trip-destinations-loading" accessible accessibilityRole="progressbar"
+    accessibilityLabel="Загружаем направления" accessibilityState={{ busy: true }}>
+    <SkeletonGroup>
+      {!searching && !hasSelection && <View style={[styles.rail, styles.skeletonRail]} testID="trip-region-rail-skeleton">
+        {[0, 1, 2].map(index => <View key={index} style={[styles.tile, index === 0 && styles.worldTile]}>
+          <SkeletonBlock style={styles.skeletonTileTitle} />
+          <SkeletonBlock style={styles.skeletonTileCaption} />
+        </View>)}
+      </View>}
+      <View style={styles.panel} testID="trip-countries-skeleton">
+        {!searching && <View style={styles.skeletonPanelLabel}>
+          <SkeletonBlock style={styles.skeletonLabel} />
+        </View>}
+        {[0, 1, 2, 3].map(index => <View key={index} style={styles.row}>
+          <SkeletonBlock style={styles.skeletonFlag} />
+          <View style={[styles.rowCopy, styles.skeletonCopy]}>
+            <SkeletonBlock style={styles.skeletonCountryName} />
+            <SkeletonBlock style={styles.skeletonCountryCaption} />
+          </View>
+          <SkeletonBlock circle style={styles.toggle} />
+        </View>)}
+      </View>
+    </SkeletonGroup>
+  </View>;
+}
+
 export function TripSearchDestinations({
-  countries, categories, selected, query, onQuery, onClear, onToggle, onChoose, onOpenRegion, catalogStatus, onRetry, onSignIn,
+  countries, categories, selected, query, focusAfterTransition, onQuery, onClear, onToggle, onChoose, onOpenRegion, catalogStatus, onRetry, onSignIn,
 }: Props) {
+  const input = useRef<TextInput>(null);
+  useEffect(() => {
+    if (focusAfterTransition) input.current?.focus();
+  }, [focusAfterTransition]);
+
   const term = query.trim();
   const eligible = tripCountries(countries);
   const availableIds = new Set(eligible.map(country => country.id));
@@ -143,7 +177,7 @@ export function TripSearchDestinations({
             <Text style={styles.chipLabel} numberOfLines={1}>{country.display_name}</Text>
             <Image source={searchArtwork.remove} style={styles.closeIcon} accessible={false} />
           </Pressable>)}
-          <TextInput autoFocus autoCorrect={false} autoCapitalize="none" keyboardAppearance="dark" returnKeyType="search"
+          <TextInput ref={input} autoFocus={Platform.OS !== 'ios'} autoCorrect={false} autoCapitalize="none" keyboardAppearance="dark" returnKeyType="search"
             value={query} onChangeText={onQuery} selectionColor={searchSurfaces.blue} placeholderTextColor={colors.mutedText}
             placeholder={selected.length ? 'Ещё страна' : 'Страна, город или регион'}
             accessibilityLabel="Страна, город или регион" style={[styles.input, selected.length === 0 && styles.emptyInput]}
@@ -155,7 +189,9 @@ export function TripSearchDestinations({
         </Pressable>}
       </View>
 
-      {!term && !selected.length && (world || quickRegions.length > 0) && (
+      {catalogStatus === 'loading' && <DestinationsSkeleton searching={!!term} hasSelection={selected.length > 0} />}
+
+      {catalogStatus !== 'loading' && !term && !selected.length && (world || quickRegions.length > 0) && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.rail} testID="trip-region-rail">
           {world && <Pressable onPress={() => choose(world)} accessibilityRole="button" testID="trip-quick-world"
@@ -177,7 +213,7 @@ export function TripSearchDestinations({
         </ScrollView>
       )}
 
-      {term ? <View style={styles.panel} testID="trip-query-results">
+      {catalogStatus !== 'loading' && (term ? <View style={styles.panel} testID="trip-query-results">
         {matches.slice(0, 10).map(({ country, reason }) => countryRow(country, reason, true))}
         {regionMatches.map(({ destination, count, related }) => regionRow(destination,
           [count ? countLabel(count) : '', related ? `${related.display_name} тоже входит` : ''].filter(Boolean).join(', ')))}
@@ -188,9 +224,8 @@ export function TripSearchDestinations({
       </View> : popular.length > 0 && <View style={styles.panel}>
         <Text style={styles.panelLabel}>Популярные</Text>
         {popular.map(country => countryRow(country, null, false))}
-      </View>}
+      </View>)}
 
-      {catalogStatus === 'loading' && <Text style={styles.message} accessibilityLiveRegion="polite">Загружаем направления…</Text>}
       {catalogStatus === 'error' && <View style={styles.catalogError}>
         <Text style={styles.caption}>Не удалось загрузить направления</Text>
         <SearchButton label="Повторить" onPress={onRetry} testID="trip-catalog-retry" />
@@ -218,15 +253,24 @@ const styles = StyleSheet.create({
   worldTile: { width: 132 },
   tileTitle: { color: colors.text, fontSize: 16, lineHeight: 22, fontWeight: '600' },
   tileCaption: { color: colors.mutedText, fontSize: 12, lineHeight: 16 },
+  skeletonRail: { flexDirection: 'row', overflow: 'hidden' },
+  skeletonTileTitle: { width: 74, height: 16, marginTop: 3 },
+  skeletonTileCaption: { width: 52, height: 10, marginTop: 5 },
   tileArtwork: { position: 'absolute', right: -12, top: 32, width: 70, height: 54 },
   worldArtwork: { position: 'absolute', left: 78, top: 30, width: 75, height: 70 },
   globeArtwork: { position: 'absolute', left: 84, top: 30, width: 58, height: 58 },
   panel: { marginTop: 12, marginHorizontal: 16, paddingVertical: 4, backgroundColor: searchSurfaces.panel, borderRadius: 24, cornerSmoothing: 1, overflow: 'hidden' },
   panelLabel: { paddingHorizontal: 16, marginTop: 8, fontSize: 14, lineHeight: 20, color: colors.mutedText },
+  skeletonPanelLabel: { marginTop: 8, paddingHorizontal: 16, height: 20, justifyContent: 'center' },
+  skeletonLabel: { width: 92, height: 12 },
   row: { minHeight: 62, paddingHorizontal: 16, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 12 },
   separator: { borderTopWidth: 1, borderTopColor: searchSurfaces.divider },
   regionIcon: { width: 41, height: 36, borderRadius: 12, backgroundColor: colors.selectedTab },
   rowCopy: { flex: 1, gap: 1 },
+  skeletonCopy: { gap: 6 },
+  skeletonFlag: { width: 41, height: 32, borderRadius: 12 },
+  skeletonCountryName: { width: '58%', height: 14 },
+  skeletonCountryCaption: { width: '35%', height: 10 },
   rowTitle: { fontSize: 16, lineHeight: 22, fontWeight: '500', color: colors.text },
   match: { color: colors.accent },
   caption: { fontSize: 14, lineHeight: 20, color: colors.mutedText },

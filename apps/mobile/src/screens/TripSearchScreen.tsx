@@ -17,6 +17,7 @@ import { useCatalogCategories } from '../hooks/useCatalogCategories';
 import { useTripTariffs } from '../hooks/useTripTariffs';
 import type { RootStackParamList } from '../navigation/stack';
 import { useOnline } from '../service/connectivity';
+import { plural } from '../tariffs/tariffs';
 import { colors } from '../theme';
 import { StyleSheet } from '../ui/design';
 import { ScrollView } from '../ui/ScrollView';
@@ -61,11 +62,6 @@ function QuestionChoices<T extends { id: string; label: string; detail: string }
   </View>;
 }
 
-function countOffers(count: number) {
-  const form = new Intl.PluralRules('ru').select(count);
-  return `Нашли ${count} ${form === 'one' ? 'вариант' : form === 'few' ? 'варианта' : 'вариантов'}`;
-}
-
 export function TripSearchScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'TripSearch'>) {
   const insets = useSafeAreaInsets();
   const online = useOnline();
@@ -82,6 +78,14 @@ export function TripSearchScreen({ navigation }: NativeStackScreenProps<RootStac
   const [usage, setUsage] = useState<Usage | null>(null);
   const [chosenDays, setChosenDays] = useState<number | null>(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [iosTransitionFinished, setIosTransitionFinished] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    return navigation.addListener('transitionEnd', ({ data }) => {
+      if (!data.closing && navigation.isFocused()) setIosTransitionFinished(true);
+    });
+  }, [navigation]);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
@@ -178,7 +182,7 @@ export function TripSearchScreen({ navigation }: NativeStackScreenProps<RootStac
 
   const heading = step === 'where' ? 'Куда летите?' : step === 'duration' ? 'Сколько дней\nв поездке?'
     : step === 'usage' ? 'Для чего нужен\nинтернет?' : waiting || !offers.length ? 'Подбираем eSIM'
-      : multi ? 'Подобрали eSIM' : countOffers(offers.length);
+      : multi ? 'Подобрали eSIM' : `Нашли ${offers.length} ${plural(offers.length, 'вариант', 'варианта', 'вариантов')}`;
   const bottom = Platform.OS === 'web' ? 12 : keyboardVisible ? 0 : insets.bottom;
 
   return <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.screen}>
@@ -195,6 +199,7 @@ export function TripSearchScreen({ navigation }: NativeStackScreenProps<RootStac
       {step === 'where' ? <>
         <Text style={[styles.title, styles.whereTitle]} accessibilityRole="header">{heading}</Text>
         <TripSearchDestinations countries={countries} categories={categories} selected={draft} query={query}
+          focusAfterTransition={iosTransitionFinished}
           onQuery={setQuery} onClear={() => setDraft([])} onToggle={country => setDraft(selected => toggleTripCountry(selected, country))}
           onChoose={chooseDestination} onOpenRegion={category => navigation.navigate('RegionTariffs', { category })}
           catalogStatus={catalog.state.status} onRetry={catalog.reload}
