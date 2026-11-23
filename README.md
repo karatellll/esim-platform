@@ -44,25 +44,47 @@ AGENTS.md              # Правила разработки
 
 ## Запуск приложения
 
-Из корня репозитория:
+Установите зависимости клиента и сервера один раз из корня репозитория
+(Node.js и Python 3.12 или новее):
 
 ```bash
 npm ci --prefix apps/mobile
+python3 -m venv apps/api/.venv
+apps/api/.venv/bin/python -m pip install -r apps/api/requirements.lock
+apps/api/.venv/bin/python -m pip install --no-deps -e apps/api
+```
+
+На Windows создайте окружение командой `py -3 -m venv apps/api/.venv`,
+а в командах установки используйте `apps/api/.venv/Scripts/python.exe`.
+Создайте корневой `.env` из `.env.example`, если его ещё нет, и заполните
+серверные настройки по [README сервера](apps/api/README.md).
+
+Запуск бэкенда и фронтенда одной командой:
+
+```bash
 npm run dev
 ```
 
 Откройте Expo Go на телефоне и отсканируйте QR-код. Телефон и компьютер
-должны находиться в одной сети. Для браузерного просмотра: `npm run web`.
+должны находиться в одной сети. Для отладки в браузере запускайте
+`npm run dev:web` — API и веб-клиент стартуют вместе. Дополнительные параметры
+Expo можно передать через `npm run dev -- --android`, `--ios` или `--clear`.
+
+Логи обоих процессов видны в текущем терминале, клавиши Expo доступны.
+Изменения Python автоматически перезапускают API, изменения клиента
+подхватывает Fast Refresh. `Ctrl+C` останавливает оба процесса; если один
+завершится, скрипт остановит второй. Скрипт работает на Linux, macOS и Windows.
+
+В режиме `dev:web` клиент обращается к локальному API на порту 8000 по имени
+хоста из адресной строки браузера. Для другого сервера задайте
+`EXPO_PUBLIC_API_URL` в окружении перед запуском команды.
+
+API отдельно: `npm run api` (Linux/macOS) или
+`apps/api/.venv/Scripts/python.exe -m app.cli` (Windows).
+Только клиент: `npm --prefix apps/mobile start`, только веб-клиент: `npm run web`.
 Проверка TypeScript: `npm run typecheck`.
 
-Для загрузки каталога запустите бэкенд во втором терминале:
-
-```bash
-npm run api
-```
-
-Установка Python-зависимостей и настройка токена описаны в
-[README сервера](apps/api/README.md). Сервер использует порт 8000;
+Сервер использует порт 8000;
 клиент в браузере автоматически обращается к тому же hostname на этом порту.
 Expo Go использует hostname сервера Expo. Для другого API можно задать
 `EXPO_PUBLIC_API_URL` в `apps/mobile/.env`.

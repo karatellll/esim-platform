@@ -1,0 +1,20 @@
+services:
+  caddy:
+    image: caddy:2.11-alpine
+    network_mode: host
+    environment:
+      TURSIM_PUBLIC_IP: ${TURSIM_PUBLIC_IP:?Set the public IPv4 address of the VPS}
+    volumes:
+      - type: bind
+        source: ./Caddyfile.ip
+        target: /etc/caddy/Caddyfile
+        read_only: true
+        bind:
+          create_host_path: false
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

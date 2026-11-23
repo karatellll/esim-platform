@@ -1,0 +1,19 @@
+name: tursim
+
+services:
+  api:
+    build:
+      context: ./apps/api
+    env_file: .env
+    environment:
+      AUTH_DATABASE_PATH: /var/lib/tursim/auth.sqlite3
+      ORDERS_DATABASE_PATH: /var/lib/tursim/orders.sqlite3
+      AUTH_COOKIE_SECURE: "true"
+    network_mode: host
+    command: ["--host", "127.0.0.1", "--port", "8000", "--forwarded-allow-ips", "127.0.0.1"]
+    volumes:
+      - api_data:/var/lib/tursim
+    restart: unless-stopped
+
+volumes:
+  api_data:

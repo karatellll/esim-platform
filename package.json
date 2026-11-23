@@ -2,7 +2,8 @@
   "name": "esim-platform",
   "private": true,
   "scripts": {
-    "dev": "npm --prefix apps/mobile run start",
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "node scripts/dev.mjs --web",
     "web": "npm --prefix apps/mobile run web",
     "android": "npm --prefix apps/mobile run android",
     "ios": "npm --prefix apps/mobile run ios",

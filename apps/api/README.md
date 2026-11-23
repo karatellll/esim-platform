@@ -26,6 +26,37 @@ npm run api
 телефону в той же локальной сети. Браузер приложения разрешён через
 `API_CORS_ORIGINS`. Для другого адреса браузера добавьте его origin в этот список.
 
+## Docker Compose на Linux VPS
+
+Установите Docker Engine и плагин Docker Compose. Скопируйте на VPS
+`compose.yaml`, `apps/api/Dockerfile`, `apps/api/.dockerignore`,
+`apps/api/requirements.lock` и `apps/api/app/`. Передайте корневой `.env`
+отдельно по SSH. Он содержит настройки SMTP, `AUTH_OTP_SECRET` и ключи
+поставщика. При чистом развёртывании не копируйте `apps/api/var`. Для
+веб-клиента задайте точный адрес фронтенда в `API_CORS_ORIGINS`.
+
+Из корня перенесённого проекта выполните:
+
+```bash
+chmod 600 .env
+docker compose up -d --build --wait
+docker compose ps
+curl -fsS http://127.0.0.1:8000/health
+```
+
+Compose использует сетевое пространство Linux-хоста, чтобы Caddy или Nginx
+на том же VPS мог проксировать запросы на `127.0.0.1:8000`. Привязка API к
+loopback сохраняется и внутри контейнера. При необходимости освободите порт
+8000, если на нём уже запущена версия API без Docker.
+
+Обе SQLite-базы создаются в томе `tursim_api_data`. Контейнер можно
+пересобрать командой `docker compose up -d --build`, данные сохранятся.
+Команда `docker compose down -v` удаляет том с данными. Журналы доступны
+через `docker compose logs --tail=100 api`.
+
+После настройки HTTPS проверьте вход по коду из письма и укажите публичный
+адрес API в `EXPO_PUBLIC_API_URL` при сборке клиента.
+
 ## Маршруты
 
 - `GET /health` — состояние сервера и факт настройки каталога без значения токена.

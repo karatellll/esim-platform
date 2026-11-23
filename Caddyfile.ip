@@ -1,0 +1,14 @@
+{
+	default_sni {$TURSIM_PUBLIC_IP}
+}
+
+https://{$TURSIM_PUBLIC_IP}:8443 {
+	tls force_automate {
+		issuer acme https://acme-v02.api.letsencrypt.org/directory {
+			profile shortlived
+			disable_tlsalpn_challenge
+		}
+	}
+
+	reverse_proxy 127.0.0.1:8000
+}
