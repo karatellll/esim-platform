@@ -27,6 +27,7 @@ import { colors } from '../theme';
 import { TariffSkeleton } from '../components/SkeletonLayouts';
 import { TariffPurchaseBar } from '../components/TariffPurchaseBar';
 import { TariffDiscountBadge } from '../components/TariffDiscountBadge';
+import { TariffRecommendationHint, TariffRecommendationIcon, tariffOptionLabel } from '../components/TariffRecommendation';
 import { useSkeletonGate } from '../hooks/useSkeletonGate';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RegionTariffs'>;
@@ -50,10 +51,11 @@ export function RegionTariffsScreen({ route, navigation }: Props) {
   const data = catalog.state.status === 'ready' && catalog.state.data.esim.id === bundle?.id ? catalog.state.data : null;
   const tariffs = data?.tariffs ?? [];
   const durations = getDurations(tariffs);
-  const recommended = recommendTariff(tariffs, route.params);
-  const activeDuration = durations.some((duration) => durationKey(duration) === durationSelection) ? durationSelection : recommended ? durationKey(recommended.duration) : getDefaultDuration(tariffs);
+  const { initialTariffId, recommendedTariffId } = route.params;
+  const initial = tariffs.find(tariff => tariff.id === initialTariffId) ?? recommendTariff(tariffs, route.params);
+  const activeDuration = durations.some((duration) => durationKey(duration) === durationSelection) ? durationSelection : initial ? durationKey(initial.duration) : getDefaultDuration(tariffs);
   const visibleTariffs = getTariffsForDuration(tariffs, activeDuration);
-  const selected = visibleTariffs.find((tariff) => tariff.id === tariffSelection) ?? visibleTariffs.find(tariff => tariff.id === recommended?.id) ?? getDefaultTariff(visibleTariffs);
+  const selected = visibleTariffs.find((tariff) => tariff.id === tariffSelection) ?? visibleTariffs.find(tariff => tariff.id === initial?.id) ?? getDefaultTariff(visibleTariffs);
   const topInset = Platform.OS === 'web' ? 48 : insets.top;
   const bottomPadding = Platform.OS === 'web' ? 42 : Math.max(insets.bottom, 12) + 8;
   const prefix = getRegionHeadingPrefix(category.title);
@@ -129,14 +131,22 @@ export function RegionTariffsScreen({ route, navigation }: Props) {
             <View style={styles.packages} testID="region-packages">
               {visibleTariffs.map((tariff) => {
                 const active = tariff.id === selected?.id;
+                const recommended = tariff.id === recommendedTariffId;
                 const savings = getTariffSavings(tariff, visibleTariffs);
-                return <Pressable key={tariff.id} onPress={() => setTariffSelection(tariff.id)} style={({ pressed }) => [styles.package, active && styles.packageActive, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={`${formatDataAmount(tariff)}, ${formatDuration(tariff.duration)}, ${formatTariffPrice(tariff)}`} accessibilityState={{ selected: active }} aria-pressed={active} testID={`region-tariff-${tariff.id}`}>
-                  <View style={{ flex: 1, gap: 2 }}><Text style={styles.packageData} numberOfLines={1} adjustsFontSizeToFit>{formatDataAmount(tariff)}</Text><Text style={styles.unitPrice}>{tariff.is_unlimited ? 'Без ограничений по трафику' : tariffGigabytes(tariff) ? `${formatCatalogPrice({ amount: tariff.price_amount_minor / tariffGigabytes(tariff)!, currency: tariff.price_currency }).replace(/^от /, '')} за ГБ` : formatDuration(tariff.duration)}</Text></View>
+                return <Pressable key={tariff.id} onPress={() => setTariffSelection(tariff.id)} style={({ pressed }) => [styles.package, active && styles.packageActive, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={tariffOptionLabel(tariff, recommended)} accessibilityState={{ selected: active }} aria-pressed={active} testID={`region-tariff-${tariff.id}`}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={[styles.packageData, { flexShrink: 1 }]} numberOfLines={1} adjustsFontSizeToFit>{formatDataAmount(tariff)}</Text>
+                      {recommended && <TariffRecommendationIcon />}
+                    </View>
+                    <Text style={styles.unitPrice}>{tariff.is_unlimited ? 'Без ограничений по трафику' : tariffGigabytes(tariff) ? `${formatCatalogPrice({ amount: tariff.price_amount_minor / tariffGigabytes(tariff)!, currency: tariff.price_currency }).replace(/^от /, '')} за ГБ` : formatDuration(tariff.duration)}</Text>
+                  </View>
                   <TariffDiscountBadge savings={savings} profitable={tariff.is_profitable_badge} />
                   <Text style={styles.packagePrice} numberOfLines={1}>{formatTariffPrice(tariff)}</Text>
                 </Pressable>;
               })}
             </View>
+            {visibleTariffs.some(tariff => tariff.id === recommendedTariffId) && <TariffRecommendationHint />}
           </>}
     </ScrollView>
     {data && selected && <TariffPurchaseBar

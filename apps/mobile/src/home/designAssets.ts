@@ -17,7 +17,7 @@ export const homeDesignAssets = {
 export const homeRegions = [
   { key: 'europe', title: 'Европа', image: require('../../assets/home-v3/europe.png') },
   { key: 'asia', title: 'Азия', image: require('../../assets/home-v3/asia.png') },
-  { key: 'africa', title: 'Африка', image: null },
+  { key: 'africa', title: 'Африка', image: require('../../assets/home-v3/africa.png') },
 ] as const;
 
 export const homeDestinations = [

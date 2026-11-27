@@ -147,7 +147,7 @@ test('checkout anchors its header and pay button and shows invalid email beside 
   assert.equal(a.keyboardEvents.size, 0);
 });
 
-test('the countries catalog opens trip search, shows rectangular flags and links to world tariffs', async () => {
+test('the countries catalog keeps trip search above the list, shows rectangular flags and links to world tariffs', async () => {
   const turkey = { ...country, image_url: 'https://example.com/tr.png' };
   const france = { ...country, id: 'fr', country_iso2: 'FR', display_name: 'Франция', image_url: 'https://example.com/fr.png' };
   const georgia = { ...country, id: 'ge', country_iso2: 'GE', display_name: 'Грузия' };
@@ -188,6 +188,8 @@ test('the countries catalog opens trip search, shows rectangular flags and links
   assert.deepEqual(a.navigations.at(-1), ['WorldTariffs', { bundle: world }]);
   const worldScreen = await a.mount('/screens/WorldTariffsScreen.tsx', { route: { params: a.navigations.at(-1)[1] }, navigation: a.props.navigation });
   assert.ok(a.node(worldScreen, 'world-tariff-5gb', 'Pressable'));
+  const worldPhoto = worldScreen.root.findAllByType('Image').find(image => image.props.source === '../../assets/world/hero.jpg');
+  assert.equal(worldPhoto?.props.contentFit, 'cover');
   const worldButton = id => a.node(worldScreen, id, 'Pressable');
   assert.equal(worldButton('world-back').findByType('TabBarMaterial').props.borderRadius, 20);
   assert.equal(worldButton('world-share').findByType('TabBarMaterial').props.borderRadius, 20);
@@ -207,6 +209,14 @@ test('the countries catalog opens trip search, shows rectangular flags and links
   assert.equal(a.navigations.at(-1), 'back');
 
   const search = node('directions-search');
+  const catalogScroll = node('directions-scroll', 'ScrollView');
+  assert.equal(catalogScroll.findAllByProps({ testID: 'directions-search' }).length, 0);
+  assert.ok(catalogScroll.findAllByProps({ testID: 'directions-categories' }).length > 0);
+  const viewport = node('directions-viewport', 'NativeView');
+  assert.equal(viewport.findByType('ScrollView'), catalogScroll);
+  assert.equal(viewport.props.style.overflow, 'hidden');
+  assert.equal(viewport.props.style.borderTopLeftRadius, 16);
+  assert.equal(viewport.props.style.borderTopRightRadius, 16);
   assert.equal(search.props.accessibilityRole, 'button');
   await act(() => search.props.onPress());
   assert.deepEqual(a.navigations.at(-1), ['TripSearch']);
@@ -330,7 +340,7 @@ test('checkout retries an unconfirmed price without creating an order', async ()
   let attempts = 0;
   const a = app({ summary: async () => {
     if (++attempts === 1) throw new Error('provider price unavailable');
-    return { data: base };
+    return { data: { ...base, amount: 889.5 } };
   } });
   const renderer = await a.mount('/screens/CheckoutScreen.tsx', a.props);
   assert.ok(a.node(renderer, 'checkout-price-check-failed', 'View'));
@@ -346,9 +356,49 @@ test('checkout retries an unconfirmed price without creating an order', async ()
   await act(() => renderer.unmount());
 });
 
+test('tariff pages preselect the search result and let the user buy another package', async () => {
+  const region = { ...country, id: 'europe', country_iso2: 'XE', display_name: 'Европа (регион)' };
+  const category = { title: 'Европа', esims: [country, region] };
+  const world = { ...country, id: 'world', country_iso2: 'XG', display_name: 'Весь мир' };
+  const recommendation = { ...tariff, id: '10gb', data_amount: { amount: 10, unit: 'GB' }, duration: { amount: 30, unit: 'day' } };
+  const alternative = { ...recommendation, id: '3gb', data_amount: { amount: 3, unit: 'GB' } };
+  const tariffsByEsim = Object.fromEntries([country, region, world].map(esim => [esim.id, { esim, tariffs: [tariff, alternative, recommendation] }]));
+  const a = app({ tariffsByEsim });
+  for (const [screen, params, optionPrefix, durationPrefix, buyId, esim] of [
+    ['CountryTariffs', { country }, 'tariff-', 'duration-', 'tariff-buy', country],
+    ['RegionTariffs', { category }, 'region-tariff-', 'region-duration-', 'region-buy', region],
+    ['WorldTariffs', { bundle: world }, 'world-tariff-', 'world-duration-', 'world-buy', world],
+  ]) {
+    const route = { params: { ...params, initialTariffId: recommendation.id, recommendedTariffId: recommendation.id } };
+    const renderer = await a.mount(`/screens/${screen}Screen.tsx`, { route, navigation: a.props.navigation });
+    const button = id => a.node(renderer, id, 'Pressable');
+    const recommended = () => button(optionPrefix + recommendation.id);
+    const other = () => button(optionPrefix + alternative.id);
+    const hint = () => a.node(renderer, 'tariff-recommendation-hint', 'View');
+    try {
+      assert.equal(button(durationPrefix + 'day:30').props.accessibilityState.selected, true);
+      assert.equal(recommended().props.accessibilityState.selected, true);
+      assert.equal(recommended().findByProps({ testID: 'tariff-recommendation-icon' }).props.accessible, false);
+      assert.equal(hint().findByType('Text').props.children, 'Подходящий тариф по запросу');
+      await act(() => other().props.onPress());
+      assert.equal(other().props.accessibilityState.selected, true);
+      assert.equal(other().findAllByProps({ testID: 'tariff-recommendation-icon' }).length, 0);
+      assert.equal(recommended().props.accessibilityState.selected, false);
+      assert.ok(hint());
+      await act(() => button(buyId).props.onPress());
+      assert.deepEqual(a.navigations.at(-1), ['Checkout', { country: esim, tariff: alternative }]);
+      await act(() => button(durationPrefix + 'day:15').props.onPress());
+      assert.equal(button(optionPrefix + tariff.id).props.accessibilityState.selected, true);
+      assert.equal(hint(), undefined);
+    } finally {
+      await act(() => renderer.unmount());
+    }
+  }
+});
+
 test('the region uses the country purchase bar and checks out the newly selected tariff', async () => {
   const region = { ...country, id: 'europe', country_iso2: 'XE', display_name: 'Европа (регион)' };
-  const longerTariff = { ...tariff, id: '10gb', price_amount_minor: 1909, data_amount: { amount: 10, unit: 'GB' }, duration: { amount: 30, unit: 'day' } };
+  const longerTariff = { ...tariff, id: '10gb', price_amount_minor: 1908.5, data_amount: { amount: 10, unit: 'GB' }, duration: { amount: 30, unit: 'day' } };
   const a = app({ tariffsByEsim: {
     [country.id]: { esim: country, tariffs: [tariff] },
     [region.id]: { esim: region, tariffs: [tariff, longerTariff] },
@@ -367,6 +417,8 @@ test('the region uses the country purchase bar and checks out the newly selected
     }
   }
   const countryBar = a.node(countryScreen, 'tariff-purchase', 'View');
+  assert.equal(a.node(countryScreen, 'tariff-recommendation-icon', 'Image'), undefined);
+  assert.equal(a.node(countryScreen, 'tariff-recommendation-hint', 'View'), undefined);
   const regionBar = a.node(regionScreen, 'region-purchase', 'View');
   assert.deepEqual(regionBar.props.style, countryBar.props.style);
   const buy = a.node(regionScreen, 'region-buy', 'Pressable');
@@ -379,6 +431,8 @@ test('the region uses the country purchase bar and checks out the newly selected
 
   await act(() => a.node(regionScreen, 'region-duration-day:30', 'Pressable').props.onPress());
   assert.equal(price(), '1 909 ₽');
+  const selectedPackage = a.node(regionScreen, 'region-tariff-10gb', 'Pressable');
+  assert.ok(selectedPackage.findAllByType('Text').some(text => String(text.props.children).replace(/\s/g, ' ') === '191 ₽ за ГБ'));
   assert.equal(details(), '10 ГБ · 30 дней');
   await act(() => buy.props.onPress());
   assert.deepEqual(a.navigations.at(-1), ['Checkout', { country: region, tariff: longerTariff }]);

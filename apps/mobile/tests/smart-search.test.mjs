@@ -44,9 +44,13 @@ test('sixth selection is refused, removal at the limit works', () => {
  const five=[it,fr,es,de,be]; assert.equal(toggleTripCountry(five,th).length,5);
  assert.equal(toggleTripCountry(five,it).length,4);
 });
-test('Russia and unsupported countries do not affect the usable itinerary', () => {
- const result=planTrip([it,fr,esim('RU'),{...esim('KP'),id:'unavailable:KP'}],categories);
- assert.equal(result.primary.esim.id,'XE'); assert.equal(result.ignored.length,2);
+test('Russia participates in the itinerary when available and unsupported countries are ignored', () => {
+ const russia = esim('RU');
+ const unavailable = { ...esim('KP'), id: 'unavailable:KP' };
+ const result = planTrip([it, fr, russia, unavailable], [...categories, { title: 'СНГ', esims: [russia] }]);
+ assert.equal(result.primary.esim.id, 'XG');
+ assert.deepEqual(result.primary.countries, [it, fr, russia]);
+ assert.deepEqual(result.ignored, [unavailable]);
 });
 const supported=[esim('TR',100,'Турция'),esim('GB',100,'Великобритания'),esim('AE',100,'ОАЭ'),esim('TH',100,'Таиланд')];
 for (const [query, code] of [['турц','TR'],['турцыя','TR'],['Туриця','TR'],['Англия','GB'],['Эмираты','AE'],['Пхукет','TH'],['nehwbz','TR'],['Turkey','TR'],['UAE','AE'],['Thailand','TH']]) {

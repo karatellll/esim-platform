@@ -36,9 +36,9 @@ function PopularCountry({ destination, country, loading, onPress }: {
   const tariffs = useCatalogTariffs(country?.id ?? null, true);
   const pricePerGb = country && tariffs.state.status === 'ready' && tariffs.state.data.esim.id === country.id
     ? getPricePerGigabyte(tariffs.state.data.tariffs) : null;
-  const price = pricePerGb ? `${formatCatalogPrice(pricePerGb, 0)} за\u00a0ГБ`
+  const price = pricePerGb ? `${formatCatalogPrice(pricePerGb)} за\u00a0ГБ`
     : loading || (country && tariffs.state.status === 'loading') ? null
-      : country ? formatCatalogPrice(getCatalogPrice(country), 0) : '—';
+      : country ? formatCatalogPrice(getCatalogPrice(country)) : '—';
   const label = { TR: homeLabels['country-tr'], AE: homeLabels['country-ae'], TH: homeLabels['country-th'], GE: null, JP: null }[destination.code];
   return <Pressable onPress={onPress}
     style={({ pressed }) => [styles.countryCard, pressed && styles.pressed]}
@@ -120,11 +120,13 @@ export function HomeScreen() {
             {homeRegions.map(region => {
               const category = categories?.find(item => item.title.trim().toLocaleLowerCase('ru') === region.title.toLocaleLowerCase('ru'));
               const countryCount = category ? countLabel(getCountries([category]).length) : null;
+              const isAfrica = region.key === 'africa';
               return <Pressable key={region.key} style={({ pressed }) => [styles.region, pressed && styles.pressed]}
                 onPress={() => openRegion(category)} accessibilityRole="button"
                 accessibilityLabel={countryCount ? `${region.title}. ${countryCount}` : region.title} testID={`home-region-${region.key}`}>
-                {region.image && <Image source={region.image} style={[styles.regionImage, region.key === 'asia' && styles.asiaImage]} contentFit="cover" accessible={false} />}
-                {region.key === 'africa'
+                <Image source={region.image} style={isAfrica ? styles.africaImage : [styles.regionImage, region.key === 'asia' && styles.asiaImage]}
+                  contentFit={isAfrica ? 'contain' : 'cover'} accessible={false} />
+                {isAfrica
                   ? <Text style={styles.countryName} numberOfLines={1}>{region.title}</Text>
                   : <HomeDesignLabel artwork={homeLabels[`${region.key}-title`]} />}
                 {countryCount && <Text style={styles.regionCount} numberOfLines={1} testID={`home-region-count-${region.key}`}>{countryCount}</Text>}
@@ -190,6 +192,7 @@ const styles = StyleSheet.create({
   region: { flex: 1, minWidth: 0, height: 132, borderRadius: 20, cornerSmoothing: 1, backgroundColor: 'rgba(38,38,41,0.5)', overflow: 'hidden', padding: 14, gap: 2 },
   regionImage: { position: 'absolute', right: -24, top: 58.11, width: 120, height: 91.886 },
   asiaImage: { top: 57.93, height: 92.069 },
+  africaImage: { position: 'absolute', bottom: -14, left: 0, width: '100%', height: 112 },
   regionCount: { fontSize: 12, lineHeight: 16, color: colors.mutedText },
   popular: { marginTop: 24, gap: 12 },
   popularHeading: { height: 26, paddingLeft: 20 },

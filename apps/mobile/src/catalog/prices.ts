@@ -23,14 +23,14 @@ export function getMinimumCatalogPrice(esims: readonly PricedEsim[]): CatalogPri
   return minimum;
 }
 
-export function formatCatalogPrice(price: CatalogPrice | null, maximumFractionDigits = 2): string {
+export function formatCatalogPrice(price: CatalogPrice | null): string {
   if (!price) return '—';
   // SDK min_price_amount is displayed directly; no conversion to minor units is applied.
   const formatted = new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: price.currency,
     minimumFractionDigits: 0,
-    maximumFractionDigits,
+    maximumFractionDigits: 0,
   }).format(price.amount);
   return `от ${formatted}`;
 }

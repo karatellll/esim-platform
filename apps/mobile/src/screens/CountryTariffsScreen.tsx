@@ -20,6 +20,7 @@ import { CountryFlag } from '../components/CountryFlag';
 import { TariffSkeleton } from '../components/SkeletonLayouts';
 import { TariffPurchaseBar, TariffPurchaseBarSkeleton } from '../components/TariffPurchaseBar';
 import { TariffDiscountBadge } from '../components/TariffDiscountBadge';
+import { TariffRecommendationHint, TariffRecommendationIcon, tariffOptionLabel } from '../components/TariffRecommendation';
 import { useSkeletonGate } from '../hooks/useSkeletonGate';
 import { useCatalogTariffs } from '../hooks/useCatalogTariffs';
 import { recommendTariff } from '../home/recommendation';
@@ -31,8 +32,6 @@ import { colors } from '../theme';
 type Props = NativeStackScreenProps<RootStackParamList, 'CountryTariffs'>;
 const assets = {
   sticker: require('../../assets/tariffs/sticker.svg'),
-  eyesCard: require('../../assets/tariffs/eyes-card.svg'),
-  eyesHint: require('../../assets/tariffs/eyes-hint.svg'),
 };
 
 export function CountryTariffsScreen({ route, navigation }: Props) {
@@ -50,12 +49,13 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
   const failed = catalog.state.status === 'error' || skeletonGate.timedOut;
   const country = data?.esim ?? destination;
   const tariffs = data?.tariffs ?? [];
-  const recommended = recommendTariff(tariffs, route.params);
+  const { initialTariffId, recommendedTariffId } = route.params;
+  const initial = tariffs.find(tariff => tariff.id === initialTariffId) ?? recommendTariff(tariffs, route.params);
   const durations = getDurations(tariffs);
-  const activeDuration = durations.some((duration) => durationKey(duration) === durationSelection) ? durationSelection : recommended ? durationKey(recommended.duration) : getDefaultDuration(tariffs);
+  const activeDuration = durations.some((duration) => durationKey(duration) === durationSelection) ? durationSelection : initial ? durationKey(initial.duration) : getDefaultDuration(tariffs);
   const visibleTariffs = getTariffsForDuration(tariffs, activeDuration);
   const selected = visibleTariffs.find((tariff) => tariff.id === tariffSelection)
-    ?? visibleTariffs.find((tariff) => tariff.id === recommended?.id) ?? getDefaultTariff(visibleTariffs);
+    ?? visibleTariffs.find((tariff) => tariff.id === initial?.id) ?? getDefaultTariff(visibleTariffs);
   const isGlobal = country.country_iso2?.toUpperCase() === 'XG';
   const heading = getTariffHeading(country);
   const countryName = heading.label;
@@ -128,21 +128,19 @@ export function CountryTariffsScreen({ route, navigation }: Props) {
             <View style={styles.grid} testID="tariff-packages">
               {visibleTariffs.map((tariff) => {
                 const active = tariff.id === selected?.id;
+                const recommended = tariff.id === recommendedTariffId;
                 const savings = getTariffSavings(tariff, visibleTariffs);
-                return <Pressable key={tariff.id} testID={`tariff-${tariff.id}`} accessibilityRole="button" accessibilityLabel={`${formatDataAmount(tariff)}, ${formatDuration(tariff.duration)}, ${formatTariffPrice(tariff)}`} accessibilityState={{ selected: active }} aria-pressed={active} onPress={() => setTariffSelection(tariff.id)} style={({ pressed }) => [styles.package, active && styles.packageActive, pressed && styles.pressed]}>
+                return <Pressable key={tariff.id} testID={`tariff-${tariff.id}`} accessibilityRole="button" accessibilityLabel={tariffOptionLabel(tariff, recommended)} accessibilityState={{ selected: active }} aria-pressed={active} onPress={() => setTariffSelection(tariff.id)} style={({ pressed }) => [styles.package, active && styles.packageActive, pressed && styles.pressed]}>
                   <View style={{ flex: 1, gap: 2 }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Text style={styles.packageTitle}>{formatDataAmount(tariff)}</Text>
-                    {active && <Image source={assets.eyesCard} style={{ width: 28.8, height: 18 }} contentFit="contain" />}
+                    {recommended && <TariffRecommendationIcon />}
                   </View><Text style={styles.unitPrice}>{tariff.is_unlimited ? 'Без ограничений по трафику' : tariffGigabytes(tariff) ? `${formatCatalogPrice({ amount: tariff.price_amount_minor / tariffGigabytes(tariff)!, currency: tariff.price_currency }).replace(/^от /, '')} за ГБ` : formatDuration(tariff.duration)}</Text></View>
                   <TariffDiscountBadge savings={savings} profitable={tariff.is_profitable_badge} />
                   <Text style={styles.packagePrice}>{formatTariffPrice(tariff)}</Text>
                 </Pressable>;
               })}
             </View>
-            {selected && <View style={styles.hint} testID="tariff-selection-hint">
-              <Image source={assets.eyesHint} style={styles.eyesHint} contentFit="contain" accessible={false} />
-              <Text style={styles.hintText}>Выбрано: {formatDataAmount(selected)} · {formatDuration(selected.duration)}</Text>
-            </View>}
+            {visibleTariffs.some(tariff => tariff.id === recommendedTariffId) && <TariffRecommendationHint />}
           </>
         )}
       </ScrollView>
@@ -194,13 +192,9 @@ const styles = StyleSheet.create({
   grid: { gap: 8 },
   package: { minHeight: 74, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 20, borderCurve: 'continuous', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: colors.surface, borderWidth: 2, borderColor: 'transparent', justifyContent: 'space-between', overflow: 'hidden' },
   packageActive: { borderColor: colors.tariffAccent },
-  packageTitle: { fontFamily: displayFont, fontSize: 22, lineHeight: 28, fontWeight: '900', letterSpacing: -0.44, color: colors.text },
+  packageTitle: { flexShrink: 1, fontFamily: displayFont, fontSize: 22, lineHeight: 28, fontWeight: '900', letterSpacing: -0.44, color: colors.text },
   packageBottom: { flexDirection: 'row', gap: 4, alignItems: 'center', justifyContent: 'space-between' },
   packagePrice: { fontFamily, fontSize: 16, lineHeight: 22, fontWeight: '600', letterSpacing: -0.064, color: 'rgba(255,255,255,0.7)', flexShrink: 1 },
-  eyesCard: { position: 'absolute', top: 16, right: 16, width: 28.8, height: 18 },
-  hint: { flexDirection: 'row', gap: 8, alignItems: 'center', paddingHorizontal: 8 },
-  eyesHint: { width: 25.6, height: 16 },
-  hintText: { fontFamily, fontSize: 14, lineHeight: 20, color: 'rgba(255,255,255,0.6)', letterSpacing: -0.056, flex: 1 },
   buttonText: { fontFamily, fontSize: 16, lineHeight: 22, fontWeight: '600', color: colors.text },
   statusText: { fontFamily, fontSize: 14, lineHeight: 20, color: colors.mutedText, textAlign: 'center' },
   retry: { borderRadius: 16, borderCurve: 'continuous', backgroundColor: colors.tariffAccent, paddingHorizontal: 24, paddingVertical: 14, alignItems: 'center' },

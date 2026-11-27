@@ -4,6 +4,7 @@ import { Platform, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TariffPurchaseBar } from './TariffPurchaseBar';
 import { TariffDiscountBadge } from './TariffDiscountBadge';
+import { TariffRecommendationHint, TariffRecommendationIcon, tariffOptionLabel } from './TariffRecommendation';
 import { CountryFlag } from './CountryFlag';
 import { CatalogStatus } from './CatalogStatus';
 import { GlassActionButton } from './GlassActionButton';
@@ -26,19 +27,20 @@ import { CatalogCountrySheet } from './CatalogCountrySheet';
 import { useCatalogTariffs } from '../hooks/useCatalogTariffs';
 import { durationKey, formatDataAmount, formatDuration, formatTariffPrice, getDefaultDuration, getDefaultTariff, getDurations, getTariffsForDuration, getTariffSavings } from '../tariffs/tariffs';
 import { colors } from '../theme';
-import type { RootStackParamList } from '../navigation/stack';
+import type { RootStackParamList, TariffScreenSelection } from '../navigation/stack';
 import { TariffSkeleton } from './SkeletonLayouts';
 import { useSkeletonGate } from '../hooks/useSkeletonGate';
 
-import { recommendTariff, tariffGigabytes, type TripPreferences } from '../home/recommendation';
+import { recommendTariff, tariffGigabytes } from '../home/recommendation';
 
-type Props = TripPreferences & { bundle: CatalogEsim | null; onReloadCatalog: () => void; catalogState: CatalogState; onBack: () => void };
+type Props = TariffScreenSelection & { bundle: CatalogEsim | null; onReloadCatalog: () => void; catalogState: CatalogState; onBack: () => void };
 const featuredCodes = ['FR', 'IT', 'DE', 'ES', 'BE'];
-const icons = {
+const assets = {
+  hero: require('../../assets/world/hero.jpg'),
   sticker: require('../../assets/world/title-sticker.svg'),
 };
 
-export function WorldTariffsPanel({ bundle, onReloadCatalog, catalogState, onBack, ...preferences }: Props) {
+export function WorldTariffsPanel({ bundle, onReloadCatalog, catalogState, onBack, initialTariffId, recommendedTariffId, ...preferences }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const online = useOnline();
   const insets = useSafeAreaInsets();
@@ -56,11 +58,11 @@ export function WorldTariffsPanel({ bundle, onReloadCatalog, catalogState, onBac
   const remaining = countries.length - featured.length;
   const tariffs = data?.tariffs ?? [];
   const durations = getDurations(tariffs);
-  const recommended = recommendTariff(tariffs, preferences);
+  const initial = tariffs.find(tariff => tariff.id === initialTariffId) ?? recommendTariff(tariffs, preferences);
   const week = durations.find(duration => duration.amount === 7 && /^days?$/.test(duration.unit));
-  const activeDuration = durations.some((duration) => durationKey(duration) === durationSelection) ? durationSelection : recommended ? durationKey(recommended.duration) : week ? durationKey(week) : getDefaultDuration(tariffs);
+  const activeDuration = durations.some((duration) => durationKey(duration) === durationSelection) ? durationSelection : initial ? durationKey(initial.duration) : week ? durationKey(week) : getDefaultDuration(tariffs);
   const visibleTariffs = getTariffsForDuration(tariffs, activeDuration);
-  const selected = visibleTariffs.find((tariff) => tariff.id === tariffSelection) ?? visibleTariffs.find(tariff => tariff.id === recommended?.id) ?? visibleTariffs.find(tariff => tariffGigabytes(tariff) === 3) ?? getDefaultTariff(visibleTariffs);
+  const selected = visibleTariffs.find((tariff) => tariff.id === tariffSelection) ?? visibleTariffs.find(tariff => tariff.id === initial?.id) ?? visibleTariffs.find(tariff => tariffGigabytes(tariff) === 3) ?? getDefaultTariff(visibleTariffs);
 
   const share = async () => {
     const message = selected
@@ -77,9 +79,9 @@ export function WorldTariffsPanel({ bundle, onReloadCatalog, catalogState, onBac
       paddingLeft: Math.max(insets.left, 12), paddingRight: Math.max(insets.right, 12),
     }]}>
       <View style={styles.hero} pointerEvents="none">
+        <Image source={assets.hero} style={StyleSheet.absoluteFill} contentFit="cover" accessible={false} />
         <LinearGradient colors={['rgba(20,20,22,0.55)', 'rgba(20,20,22,0)', 'rgba(20,20,22,0.35)', colors.background]}
           locations={[0, 0.3, 0.62, 1]} style={StyleSheet.absoluteFill} />
-        <Text style={styles.photoLabel}>Место под фото «Весь мир», 375 × 380</Text>
       </View>
       <View style={styles.nav}>
         <GlassActionButton action="back" onPress={onBack} testID="world-back" />
@@ -90,7 +92,7 @@ export function WorldTariffsPanel({ bundle, onReloadCatalog, catalogState, onBac
         <Text style={styles.title}>Весь</Text>
         <View style={styles.stickerSlot}>
           <View style={styles.sticker}>
-            <Image source={icons.sticker} style={StyleSheet.absoluteFill} contentFit="contain" accessible={false} />
+            <Image source={assets.sticker} style={StyleSheet.absoluteFill} contentFit="contain" accessible={false} />
             <Text style={[styles.title, styles.stickerText]}>мир</Text>
           </View>
         </View>
@@ -129,10 +131,15 @@ export function WorldTariffsPanel({ bundle, onReloadCatalog, catalogState, onBac
       <View style={styles.packages} testID="world-packages">
         {visibleTariffs.map((tariff) => {
           const active = tariff.id === selected?.id;
+          const recommended = tariff.id === recommendedTariffId;
           const savings = getTariffSavings(tariff, visibleTariffs);
           const gb = tariffGigabytes(tariff);
-          return <Pressable key={tariff.id} accessibilityRole="button" accessibilityLabel={`${formatDataAmount(tariff)}, ${formatDuration(tariff.duration)}, ${formatTariffPrice(tariff)}`} accessibilityState={{ selected: active }} aria-pressed={active} testID={`world-tariff-${tariff.id}`} onPress={() => setTariffSelection(tariff.id)} style={({ pressed }) => [styles.package, active && styles.packageActive, pressed && styles.pressed]}>
-            <View style={styles.packageCopy}><Text style={styles.packageData} numberOfLines={1} adjustsFontSizeToFit>{formatDataAmount(tariff)}</Text>
+          return <Pressable key={tariff.id} accessibilityRole="button" accessibilityLabel={tariffOptionLabel(tariff, recommended)} accessibilityState={{ selected: active }} aria-pressed={active} testID={`world-tariff-${tariff.id}`} onPress={() => setTariffSelection(tariff.id)} style={({ pressed }) => [styles.package, active && styles.packageActive, pressed && styles.pressed]}>
+            <View style={styles.packageCopy}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={[styles.packageData, { flexShrink: 1 }]} numberOfLines={1} adjustsFontSizeToFit>{formatDataAmount(tariff)}</Text>
+                {recommended && <TariffRecommendationIcon />}
+              </View>
               <Text style={styles.unitPrice}>{tariff.is_unlimited ? 'Без ограничений по трафику' : gb ? `${formatCatalogPrice({ amount: tariff.price_amount_minor / gb, currency: tariff.price_currency }).replace(/^от /, '')} за ГБ` : formatDuration(tariff.duration)}</Text>
             </View>
             <TariffDiscountBadge savings={savings} />
@@ -140,6 +147,7 @@ export function WorldTariffsPanel({ bundle, onReloadCatalog, catalogState, onBac
           </Pressable>;
         })}
       </View>
+      {visibleTariffs.some(tariff => tariff.id === recommendedTariffId) && <TariffRecommendationHint />}
     </>}
     </ScrollView>
     {data && selected && <TariffPurchaseBar tariff={selected} bottomPadding={bottom} disabled={!online}
@@ -160,8 +168,7 @@ const displayFont = fonts.display;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   panel: { gap: 12 },
-  hero: { position: 'absolute', top: 0, left: 0, right: 0, height: 380, backgroundColor: '#595961', alignItems: 'center' },
-  photoLabel: { position: 'absolute', top: 150, color: 'rgba(255,255,255,0.7)', fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  hero: { position: 'absolute', top: 0, left: 0, right: 0, height: 380, backgroundColor: '#595961' },
   nav: { flexDirection: 'row', justifyContent: 'space-between' },
   heroSpace: { height: 140 },
   titleRow: { paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },

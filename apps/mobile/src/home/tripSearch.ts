@@ -10,7 +10,7 @@ export type TripDestination =
   | { kind: 'world'; esim: CatalogEsim };
 
 export type TripTarget = Exclude<TripDestination, { kind: 'countries' }> | { kind: 'country'; esim: CatalogEsim };
-export type TripOffer = { target: TripTarget; tariff: CatalogTariff };
+export type TripOffer = { target: TripTarget; tariff: CatalogTariff; recommended: boolean };
 
 export function regionCountryCodes(category: CatalogCategory) {
   return new Set(category.esims.filter(isCountry).map(country => country.country_iso2!.toUpperCase()));

@@ -15,7 +15,7 @@ import { toggleTripCountry } from '../home/smartSearch';
 import { findBestBundle, getTripDurations, getTripPackages, getTripTargets, type TripDestination, type TripOffer } from '../home/tripSearch';
 import { useCatalogCategories } from '../hooks/useCatalogCategories';
 import { useTripTariffs } from '../hooks/useTripTariffs';
-import type { RootStackParamList } from '../navigation/stack';
+import type { RootStackParamList, TariffScreenSelection } from '../navigation/stack';
 import { useOnline } from '../service/connectivity';
 import { plural } from '../tariffs/tariffs';
 import { colors } from '../theme';
@@ -113,18 +113,27 @@ export function TripSearchScreen({ navigation }: NativeStackScreenProps<RootStac
   const defaultDays = durationChoices.find(days => days >= 7) ?? durationChoices.at(-1) ?? 7;
   const currentDays = duration?.days ?? (chosenDays !== null && durationChoices.includes(chosenDays) ? chosenDays : defaultDays);
   const offers: TripOffer[] = [];
-  let recommended: TripOffer | null = null;
   if (step === 'results' && !waiting && usage) {
     for (const target of targets) {
       const state = tripTariffs.data[target.esim.id];
       if (state?.status !== 'ready') continue;
       const weeklyGb = multi && target.kind === 'country' ? usage.weeklyGb / tripCountries.length : usage.weeklyGb;
       const { packages, fits } = getTripPackages(state.tariffs, currentDays, weeklyGb, duration?.days === null);
-      offers.push(...(multi ? packages.slice(0, 1) : packages).map(tariff => ({ target, tariff })));
-      if (!multi && fits && packages.length) recommended = offers[0];
+      offers.push(...(multi ? packages.slice(0, 1) : packages).map((tariff, index) => ({ target, tariff, recommended: fits && index === 0 })));
     }
   }
   const bestBundle = multi ? findBestBundle(offers.filter(offer => offer.target.kind !== 'country')) : null;
+  const openTariffs = ({ target, tariff }: TripOffer) => {
+    const selection: TariffScreenSelection = {
+      initialTariffId: tariff.id,
+      recommendedTariffId: offers.find(offer => offer.recommended && offer.target.esim.id === target.esim.id)?.tariff.id,
+    };
+    switch (target.kind) {
+      case 'country': navigation.navigate('CountryTariffs', { country: target.esim, ...selection }); break;
+      case 'region': navigation.navigate('RegionTariffs', { category: target.category, ...selection }); break;
+      case 'world': navigation.navigate('WorldTariffs', { bundle: target.esim, ...selection }); break;
+    }
+  };
   const to = (next: Step) => {
     setStep(next);
     setReturnStep(null);
@@ -225,9 +234,9 @@ export function TripSearchScreen({ navigation }: NativeStackScreenProps<RootStac
           <TripSearchExistingEsim country={tripCountries[0]} onOpen={orderId => navigation.navigate('OrderStatus', { orderId, details: true })} />
         )}
         {step === 'results' && <TripSearchResults tripCountries={tripCountries} loading={waiting} failed={failed}
-          offers={offers} emptyDestination={!hasTariffs} bestBundle={bestBundle} recommended={recommended} durationChoices={durationChoices}
+          offers={offers} emptyDestination={!hasTariffs} bestBundle={bestBundle} durationChoices={durationChoices}
           currentDays={currentDays} onDays={setChosenDays} onRetry={tripTariffs.reload} onEditDays={() => edit('duration')}
-          onEditWhere={() => edit('where')} onCheckout={({ target, tariff }) => navigation.navigate('Checkout', { country: target.esim, tariff })} />}
+          onEditWhere={() => edit('where')} onOpenTariffs={openTariffs} />}
         {step === 'results' && !waiting && !failed && !hasTariffs && tripCountries.length === 1 && (
           <TripSearchCoverage country={tripCountries[0]} onSignIn={signIn} />
         )}

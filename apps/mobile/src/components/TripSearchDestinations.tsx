@@ -130,11 +130,10 @@ export function TripSearchDestinations({
     const available = availableIds.has(country.id);
     const disabled = !active && (!available || selected.length >= MAX_TRIP_COUNTRIES);
     const price = getCatalogPrice(country);
-    const caption = code(country) === 'RU' ? 'Используйте свою SIM дома'
-      : !available ? catalogStatus === 'ready' ? 'Тарифы пока недоступны' : 'Проверяем доступность'
+    const caption = !available ? catalogStatus === 'ready' ? 'Тарифы пока недоступны' : 'Проверяем доступность'
       : reason?.startsWith('Возможно') ? 'Может, вы искали эту страну'
       : (queryMatch ? country.network : null) || (price ? formatCatalogPrice(price) : reason);
-    const canNotify = queryMatch && catalogStatus === 'ready' && !!code(country) && code(country) !== 'RU' && !available;
+    const canNotify = queryMatch && catalogStatus === 'ready' && !!code(country) && !available;
     return <View key={country.id}><Pressable onPress={() => toggleCountry(country)} disabled={disabled}
       accessibilityRole="button" accessibilityLabel={`${active ? 'Убрать' : 'Добавить'} ${country.display_name}`}
       accessibilityState={{ selected: active, disabled }} testID={`trip-country-${code(country)}`}
@@ -150,11 +149,11 @@ export function TripSearchDestinations({
     </Pressable>{canNotify && <TripSearchCoverage country={country} onSignIn={onSignIn} />}</View>;
   };
 
-  const regionRow = (destination: SearchDestination, subtitle: string) => {
+  const regionRow = (destination: SearchDestination, subtitle: string, showSeparator: boolean) => {
     const title = destination.kind === 'world' ? 'Весь мир' : destination.category.title;
     const id = destination.kind === 'region-countries' ? title : destination.esim.id;
     return <Pressable key={title} onPress={() => choose(destination)} accessibilityRole="button"
-      testID={`trip-suggestion-${id}`} style={({ pressed }) => [styles.row, styles.separator, pressed && styles.pressed]}>
+      testID={`trip-suggestion-${id}`} style={({ pressed }) => [styles.row, showSeparator && styles.separator, pressed && styles.pressed]}>
       {destination.kind === 'region-countries'
         ? <Image source={searchArtwork.globe} style={styles.regionIcon} contentFit="contain" accessible={false} />
         : <DestinationIcon destination={destination} />}
@@ -215,9 +214,10 @@ export function TripSearchDestinations({
 
       {catalogStatus !== 'loading' && (term ? <View style={styles.panel} testID="trip-query-results">
         {matches.slice(0, 10).map(({ country, reason }) => countryRow(country, reason, true))}
-        {regionMatches.map(({ destination, count, related }) => regionRow(destination,
-          [count ? countLabel(count) : '', related ? `${related.display_name} тоже входит` : ''].filter(Boolean).join(', ')))}
-        {worldFallback && regionRow(world, 'Глобальная eSIM')}
+        {regionMatches.map(({ destination, count, related }, index) => regionRow(destination,
+          [count ? countLabel(count) : '', related ? `${related.display_name} тоже входит` : ''].filter(Boolean).join(', '),
+          matches.length > 0 || index > 0))}
+        {worldFallback && regionRow(world, 'Глобальная eSIM', matches.length > 0 || regionMatches.length > 0)}
         {!matches.length && !regionMatches.length && !worldFallback && catalogStatus === 'ready' && (
           <Text style={styles.message}>Ничего не нашли. Попробуйте изменить запрос.</Text>
         )}

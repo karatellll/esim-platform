@@ -57,7 +57,7 @@ test('durations use Russian plural forms and preserve units', () => {
 });
 
 test('selected plan price uses its own currency and catalog scale', () => {
-  assert.equal(formatTariffPrice(plan('a', 5, 15, 1169)).replace(/\s/g, ' '), '1 169 ₽');
+  assert.equal(formatTariffPrice(plan('a', 5, 15, 1168.5)).replace(/\s/g, ' '), '1 169 ₽');
   assert.doesNotMatch(formatTariffPrice(plan('a', 1, 1, 10, { price_currency: 'USD' })), /₽/);
 });
 

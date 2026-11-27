@@ -3,7 +3,7 @@ import type { CatalogCategory, CatalogEsim } from '../../../../packages/shared/c
 export const MAX_TRIP_COUNTRIES = 5;
 const regionalCodes = new Set(['XS', 'XA', 'XM', 'XC', 'XE', 'XB', 'XN', 'XL']);
 export const isCountry = (item: CatalogEsim) => !!item.country_iso2 && !regionalCodes.has(item.country_iso2.toUpperCase()) && item.country_iso2.toUpperCase() !== 'XG';
-export const tripCountries = (items: readonly CatalogEsim[]) => items.filter(item => item.country_iso2?.toUpperCase() !== 'RU' && !item.id.startsWith('unavailable:'));
+export const tripCountries = (items: readonly CatalogEsim[]) => items.filter(item => !item.id.startsWith('unavailable:'));
 const normalize = (text: string) => text.toLocaleLowerCase('ru').replace(/ё/g, 'е').replace(/[^\p{L}\p{N} ]/gu, '').trim();
 const keyboardFrom = 'qwertyuiop[]asdfghjkl;\'zxcvbnm,.';
 const keyboardTo = 'йцукенгшщзхъфывапролджэячсмитьбю';
@@ -17,7 +17,7 @@ const aliases: Record<string, string[]> = {
   FR: ['Франция', 'France', 'Париж', 'Paris', 'Ницца'], IT: ['Италия', 'Italy', 'Рим', 'Rome', 'Милан', 'Венеция'],
   ES: ['Испания', 'Spain', 'Барселона', 'Мадрид', 'Тенерифе'], DE: ['Германия', 'Germany', 'Берлин', 'Мюнхен'],
   GE: ['Грузия', 'Georgia', 'Тбилиси', 'Батуми'], JP: ['Япония', 'Japan', 'Токио'],
-  RU: ['Россия', 'Russia', 'Москва'], KP: ['КНДР', 'Северная Корея', 'North Korea'],
+  RU: ['Россия', 'Russia'], KP: ['КНДР', 'Северная Корея', 'North Korea'],
 };
 // One substitution, insertion, deletion or adjacent transposition. Avoid fuzzy short codes.
 function near(a: string, b: string): boolean {

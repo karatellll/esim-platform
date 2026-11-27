@@ -16,6 +16,10 @@ const regions = [
   { title: 'Европа', esims: [popularCountries[0], popularCountries[3], { ...country, id: 'tr-duplicate' }, { ...bundle, country_iso2: 'XE' }] },
   { title: 'Азия', esims: [popularCountries[0], popularCountries[1], popularCountries[2], popularCountries[4]] },
   { title: 'Африка', esims: [{ ...country, id: 'EG', country_iso2: 'EG', display_name: 'Египет' }] },
+  { title: 'Южная Америка', esims: [
+    { ...country, id: 'BR', country_iso2: 'BR', display_name: 'Бразилия' },
+    { ...country, id: 'XL', country_iso2: 'XL', display_name: 'Латинская Америка' },
+  ] },
 ];
 
 class ApiRequestError extends Error {
@@ -92,7 +96,10 @@ test('home opens the search, real world/region/country tariffs and savings; pric
       assert.deepEqual(app.navigations.at(-1), ['RegionTariffs', { category: regions[index] }]);
     }
     assert.equal(app.node('home-region-caucasus'), undefined);
-    assert.equal(app.node('home-region-africa').findAllByType('Image').length, 0);
+    assert.equal(app.node('home-region-south-america'), undefined);
+    const africa = app.node('home-region-africa');
+    assert.equal(africa.props.accessibilityLabel, 'Африка. 1 страна');
+    assert.match(africa.findByType('Image').props.source, /home-v3\/africa\.png$/);
     const thailandStyle = app.node('home-country-TH').props.style;
     for (const destination of popularCountries) {
       assert.deepEqual(app.node('home-country-' + destination.country_iso2).props.style, thailandStyle);

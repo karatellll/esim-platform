@@ -148,7 +148,7 @@ test('iOS opens the destination keyboard only after the opening transition', asy
   } finally { await app.close(); }
 });
 
-test('the three questions preserve and edit answers, rank a regional trip, and open the chosen checkout', async () => {
+test('the three questions preserve and edit answers, rank a regional trip, and open the chosen tariff page', async () => {
   const app = await mount({});
   try {
     assert.ok(app.node('trip-step-1'));
@@ -180,7 +180,7 @@ test('the three questions preserve and edit answers, rank a regional trip, and o
     await app.press('trip-back');
     assert.deepEqual(app.requests(), ['XE', 'XG', 'IT', 'FR', 'ES']);
     await app.press('trip-offer-europe-15-days');
-    assert.deepEqual(app.navigations, [['Checkout', { country: europe, tariff: europe15 }]]);
+    assert.deepEqual(app.navigations, [['RegionTariffs', { category: categories[0], initialTariffId: europe15.id, recommendedTariffId: europe15.id }]]);
   } finally { await app.close(); }
 });
 
@@ -198,6 +198,7 @@ test('one country ranks suitable traffic, retries without losing answers and sho
     assert.deepEqual(app.offerIds(), ['trip-offer-turkey-5', 'trip-offer-turkey-10', 'trip-offer-turkey-unlimited']);
     assert.equal(app.node('trip-heading').props.children, 'Нашли 3 варианта');
     assert.ok(app.node('trip-recommended-badge'));
+    assert.equal(app.node('trip-recommended-badge').findAllByType('Image').length, 0);
     assert.ok(app.node('trip-filter-1'));
     assert.equal(app.node('trip-filter-30'), undefined);
     await app.press('trip-filter-1');
@@ -205,7 +206,32 @@ test('one country ranks suitable traffic, retries without losing answers and sho
     assert.equal(app.node('trip-heading').props.children, 'Нашли 1 вариант');
     await app.press('trip-filter-7');
     await app.press('trip-offer-turkey-5');
-    assert.deepEqual(app.navigations, [['Checkout', { country: turkey, tariff: turkey5 }]]);
+    assert.deepEqual(app.navigations.at(-1), ['CountryTariffs', { country: turkey, initialTariffId: turkey5.id, recommendedTariffId: turkey5.id }]);
+    await app.press('trip-offer-turkey-10');
+    assert.deepEqual(app.navigations.at(-1), ['CountryTariffs', { country: turkey, initialTariffId: 'turkey-10', recommendedTariffId: turkey5.id }]);
+  } finally { await app.close(); }
+});
+
+test('Russia can be added by country name and opens the tariff found in the catalog', async () => {
+  const russia = { ...esim('RU', 'Россия'), id: 'russia-catalog-id' };
+  const packageRu = tariff('russia-week', 5, 7, 390);
+  const app = await mount({ [russia.id]: ready(packageRu) });
+  try {
+    await app.query('Россия');
+    assert.equal(app.node('trip-country-RU').props.disabled, true);
+    await app.updateCatalog({ status: 'ready', categories: [...categories, { title: 'СНГ', esims: [russia] }] });
+    await app.query('Москва');
+    assert.equal(app.node('trip-country-RU'), undefined);
+    await app.query('Россия');
+    assert.equal(app.node('trip-country-RU').props.disabled, false);
+    await app.press('trip-country-RU');
+    assert.ok(app.node('trip-remove-RU'));
+    await app.press('trip-next');
+    await app.press('trip-duration-week');
+    await app.press('trip-usage-essential');
+    assert.deepEqual(app.requests(), [russia.id]);
+    await app.press('trip-offer-russia-week');
+    assert.deepEqual(app.navigations.at(-1), ['CountryTariffs', { country: russia, initialTariffId: packageRu.id, recommendedTariffId: packageRu.id }]);
   } finally { await app.close(); }
 });
 
@@ -222,16 +248,20 @@ test('an unmatched route keeps world first and single-country prices after a par
     assert.deepEqual(app.offerIds(), ['trip-offer-world-5', 'trip-offer-turkey-5']);
     assert.ok(app.node('trip-results-partial-error'));
     assert.equal(app.node('trip-best-price'), undefined);
+    await app.press('trip-offer-world-5');
+    assert.deepEqual(app.navigations.at(-1), ['WorldTariffs', { bundle: world, initialTariffId: 'world-5', recommendedTariffId: 'world-5' }]);
   } finally { await app.close(); }
 });
 
 test('a typo offers the known country and world, and a quick region goes directly to the duration question', async () => {
   const app = await mount();
   try {
+    await app.query('весь');
+    assert.equal(app.node('trip-suggestion-XG').props.style.some(style => style?.borderTopWidth > 0), false);
     await app.query('мальдвы');
     assert.ok(app.node('trip-country-MV'));
     assert.equal(app.node('trip-country-MV').props.disabled, true);
-    assert.ok(app.node('trip-suggestion-XG'));
+    assert.ok(app.node('trip-suggestion-XG').props.style.some(style => style?.borderTopWidth > 0));
     await app.press('trip-notify-MV');
     assert.deepEqual(app.navigations, [['EmailSignIn']]);
     await app.press('trip-clear');

@@ -21,14 +21,13 @@ type ResultsProps = {
   emptyDestination: boolean;
   offers: readonly TripOffer[];
   bestBundle: TripOffer | null;
-  recommended: TripOffer | null;
   durationChoices: readonly number[];
   currentDays: number;
   onDays: (days: number) => void;
   onRetry: () => void;
   onEditDays: () => void;
   onEditWhere: () => void;
-  onCheckout: (offer: TripOffer) => void;
+  onOpenTariffs: (offer: TripOffer) => void;
 };
 
 function OfferLabel({ offer, title, caption, compact = false }: {
@@ -45,15 +44,14 @@ function OfferLabel({ offer, title, caption, compact = false }: {
 
 function OfferBadge({ bestFit = false }: { bestFit?: boolean }) {
   return <View style={styles.badge} testID={bestFit ? 'trip-recommended-badge' : 'trip-best-price'}>
-    {bestFit && <Image source={require('../../assets/search/eyes.svg')} style={styles.eyes} accessible={false} />}
     <Text style={styles.badgeText}>{bestFit ? 'Подходит лучше всего' : 'Выгоднее всего'}</Text>
   </View>;
 }
 
-function OfferCard({ offer, onCheckout, children }: {
-  offer: TripOffer; onCheckout: (offer: TripOffer) => void; children: ReactNode;
+function OfferCard({ offer, onOpenTariffs, children }: {
+  offer: TripOffer; onOpenTariffs: (offer: TripOffer) => void; children: ReactNode;
 }) {
-  return <Pressable accessibilityRole="button" onPress={() => onCheckout(offer)} testID={`trip-offer-${offer.tariff.id}`}
+  return <Pressable accessibilityRole="button" onPress={() => onOpenTariffs(offer)} testID={`trip-offer-${offer.tariff.id}`}
     style={({ pressed }) => [styles.offerCard, pressed && styles.pressed]}>
     {children}
   </Pressable>;
@@ -64,8 +62,8 @@ function durationLabel(days: number) {
 }
 
 export function TripSearchResults({
-  tripCountries, loading, failed, emptyDestination, offers, bestBundle, recommended, durationChoices, currentDays,
-  onDays, onRetry, onEditDays, onEditWhere, onCheckout,
+  tripCountries, loading, failed, emptyDestination, offers, bestBundle, durationChoices, currentDays,
+  onDays, onRetry, onEditDays, onEditWhere, onOpenTariffs,
 }: ResultsProps) {
   if (loading) return <View style={styles.stack} testID="trip-results-loading" accessibilityState={{ busy: true }}>
     {[0, 1, 2].map(index => <View key={index} style={[styles.skeleton, index === 0 && styles.firstSkeleton]}>
@@ -109,7 +107,7 @@ export function TripSearchResults({
       {bundles.map(offer => {
         const name = offer.target.kind === 'region' ? offer.target.category.title : 'Весь мир';
         const regional = offer.target.kind === 'region';
-        return <OfferCard key={offer.target.esim.id} offer={offer} onCheckout={onCheckout}>
+        return <OfferCard key={offer.target.esim.id} offer={offer} onOpenTariffs={onOpenTariffs}>
           {offer === bestBundle && <OfferBadge />}
           <OfferLabel offer={offer} title={`Одна eSIM «${name}»`} caption={packageLabel(offer.tariff)} />
           <View style={styles.offerFooter}>
@@ -123,7 +121,7 @@ export function TripSearchResults({
       {individuals.length > 0 && <View style={styles.countryPanel}>
         <Text style={styles.countryPanelTitle}>Только одна страна</Text>
         {individuals.map(offer => (
-          <Pressable key={offer.target.esim.id} accessibilityRole="button" onPress={() => onCheckout(offer)}
+          <Pressable key={offer.target.esim.id} accessibilityRole="button" onPress={() => onOpenTariffs(offer)}
             testID={`trip-offer-${offer.tariff.id}`} style={({ pressed }) => [styles.countryRow, pressed && styles.pressed]}>
             <CountryFlag country={offer.target.esim} shape="rectangle" />
             <OfferLabel offer={offer} title={offer.target.esim.display_name} caption={packageLabel(offer.tariff)} compact />
@@ -131,12 +129,12 @@ export function TripSearchResults({
         ))}
       </View>}
     </> : offers.map(offer => {
-      const fit = offer === recommended;
+      const fit = offer.recommended;
       const bestVolume = tariffGigabytes(offers[0].tariff);
       const moreData = (tariffGigabytes(offer.tariff) ?? 0) > (bestVolume ?? 0);
       const caption = offer.tariff.is_unlimited ? 'Без ограничений по трафику'
         : fit ? offer.target.esim.network : moreData ? 'С запасом' : offers.length > 1 && offer !== offers[0] ? 'Меньше трафика' : null;
-      return <OfferCard key={offer.tariff.id} offer={offer} onCheckout={onCheckout}>
+      return <OfferCard key={offer.tariff.id} offer={offer} onOpenTariffs={onOpenTariffs}>
         {fit && <OfferBadge bestFit />}
         <OfferLabel offer={offer} title={packageLabel(offer.tariff)} caption={caption} />
         {fit && <View style={styles.offerFooter}>
@@ -166,7 +164,6 @@ const styles = StyleSheet.create({
   offerFooter: { minHeight: 34, paddingTop: 11, borderTopWidth: 1, borderColor: searchSurfaces.divider, flexDirection: 'row', alignItems: 'center', gap: 8 },
   detail: { flexShrink: 1, fontSize: 14, lineHeight: 20, color: 'rgba(255,255,255,0.6)' },
   globe: { width: 22, height: 22 },
-  eyes: { width: 18, height: 14 },
   badge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: colors.lime, borderRadius: 8 },
   badgeText: { fontSize: 12, lineHeight: 16, fontWeight: '600', color: colors.ink },
   countryPanel: { paddingVertical: 8, backgroundColor: searchSurfaces.panel, borderRadius: 24, cornerSmoothing: 1 },

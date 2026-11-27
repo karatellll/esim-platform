@@ -4,7 +4,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootTabParamList } from '../navigation/tabs';
 import type { RootStackParamList } from '../navigation/stack';
 import { useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, View as NativeView } from 'react-native';
 import { ScrollView } from '../ui/ScrollView';
 import { Pressable, View } from '../ui/Surface';
 import { fonts, StyleSheet } from '../ui/design';
@@ -47,7 +47,17 @@ export function CountriesScreen() {
     ? getCountrySections(catalog.state.categories) : [], [catalog.state]);
 
   return (
-    <View style={styles.screen} testID="screen-countries">
+    <View style={[styles.screen, {
+      paddingTop: topInset + 12,
+      paddingLeft: Math.max(insets.left, 12),
+      paddingRight: Math.max(insets.right, 12),
+    }]} testID="screen-countries">
+      <Pressable style={({ pressed }) => [styles.search, pressed && styles.pressed]}
+        onPress={() => navigation.navigate('TripSearch')} accessibilityRole="button" accessibilityLabel={searchLabel} testID="directions-search">
+        <Image source={searchIcon} style={styles.searchIcon} contentFit="contain" accessible={false} />
+        <Text style={styles.searchText} numberOfLines={1}>{searchLabel}</Text>
+      </Pressable>
+    <NativeView style={styles.catalogViewport} testID="directions-viewport">
     <ScrollView
       style={styles.screen}
       testID="directions-scroll"
@@ -55,20 +65,9 @@ export function CountriesScreen() {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={[
         styles.content,
-        {
-          paddingTop: topInset + 12,
-          paddingBottom: bottomInset + tabBarLayout.height + 16,
-          paddingLeft: Math.max(insets.left, 12),
-          paddingRight: Math.max(insets.right, 12),
-        },
+        { paddingBottom: bottomInset + tabBarLayout.height + 16 },
       ]}
     >
-      <Pressable style={({ pressed }) => [styles.search, pressed && styles.pressed]}
-        onPress={() => navigation.navigate('TripSearch')} accessibilityRole="button" accessibilityLabel={searchLabel} testID="directions-search">
-        <Image source={searchIcon} style={styles.searchIcon} contentFit="contain" accessible={false} />
-        <Text style={styles.searchText} numberOfLines={1}>{searchLabel}</Text>
-      </Pressable>
-
       <View style={styles.categories} testID="directions-categories">
         {categories.map((item) => {
           const selected = item.id === category;
@@ -100,6 +99,7 @@ export function CountriesScreen() {
           : isRegions ? <CatalogRegions categories={catalog.state.categories} onSelectCategory={(item) => navigation.navigate('RegionTariffs', { category: item })} />
           : <CatalogCountries sections={sections} onSelectCountry={(country) => navigation.navigate('CountryTariffs', { country })} />}
     </ScrollView>
+    </NativeView>
     </View>
   );
 }
@@ -108,6 +108,7 @@ const fontFamily = fonts.text;
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+  catalogViewport: { flex: 1, marginTop: 12, borderTopLeftRadius: 16, borderTopRightRadius: 16, overflow: 'hidden' },
   content: { width: '100%', gap: 12 },
   search: {
     height: 52,

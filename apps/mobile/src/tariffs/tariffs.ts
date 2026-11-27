@@ -71,5 +71,5 @@ export function formatDataAmount(tariff: CatalogTariff): string {
 }
 
 export function formatTariffPrice(tariff: CatalogTariff): string {
-  return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: tariff.price_currency, minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(tariff.price_amount_minor);
+  return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: tariff.price_currency, maximumFractionDigits: 0 }).format(tariff.price_amount_minor);
 }
