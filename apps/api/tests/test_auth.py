@@ -11,6 +11,7 @@ from app.config import Settings
 from app.main import create_app
 
 ORIGIN = {"Origin": "http://localhost:8081"}
+NATIVE_REFRESH = {"X-Tursim-Refresh-Mode": "confirm"}
 
 
 @pytest.fixture
@@ -86,6 +87,50 @@ def test_native_refresh_rotation_rejects_replay_and_logout_revokes(auth_env):
     assert client.post("/api/auth/refresh", json={"client": "native", "refresh_token": first["refresh_token"]}).status_code == 401
     assert client.post("/api/auth/logout", json={"client": "native", "refresh_token": second["refresh_token"]}).status_code == 204
     assert client.get("/api/me", headers={"Authorization": "Bearer " + second["access_token"]}).status_code == 401
+
+
+def test_native_refresh_recovers_after_the_response_is_lost(auth_env):
+    client, settings, now, outbox, mailer = auth_env
+    first = login(client, outbox).json()
+    original = {"client": "native", "refresh_token": first["refresh_token"]}
+    lost = client.post("/api/auth/refresh", json=original, headers=NATIVE_REFRESH)
+    assert lost.status_code == 200
+    with TestClient(create_app(settings, auth_mailer=mailer, auth_clock=lambda: now[0])) as restarted:
+        recovered = restarted.post("/api/auth/refresh", json=original, headers=NATIVE_REFRESH)
+        assert recovered.status_code == 200
+        token = recovered.json()["refresh_token"]
+        assert token == lost.json()["refresh_token"]
+        assert token != original["refresh_token"]
+        stored = {"client": "native", "refresh_token": token}
+        for _ in range(2):
+            assert restarted.post("/api/auth/refresh/confirm", json=stored).status_code == 204
+        assert restarted.post("/api/auth/refresh", json=original, headers=NATIVE_REFRESH).status_code == 401
+        assert restarted.get("/api/me", headers={"Authorization": "Bearer " + recovered.json()["access_token"]}).status_code == 200
+
+
+def test_native_refresh_recovers_after_saving_without_confirmation_and_logout_revokes_pending(auth_env):
+    client, _, _, outbox, _ = auth_env
+    def refresh(token):
+        return client.post("/api/auth/refresh", json={"client": "native", "refresh_token": token}, headers=NATIVE_REFRESH)
+
+    first = login(client, outbox).json()["refresh_token"]
+    saved = refresh(first).json()["refresh_token"]
+    second = refresh(saved)
+    assert second.status_code == 200
+    assert refresh(first).status_code == 401
+    pending = second.json()["refresh_token"]
+    assert client.post("/api/auth/logout", json={"client": "native", "refresh_token": pending}).status_code == 204
+    assert refresh(saved).status_code == refresh(pending).status_code == 401
+
+
+def test_unconfirmed_native_refresh_expires_with_the_session(auth_env):
+    client, _, now, outbox, _ = auth_env
+    first = login(client, outbox).json()["refresh_token"]
+    original = {"client": "native", "refresh_token": first}
+    pending = client.post("/api/auth/refresh", json=original, headers=NATIVE_REFRESH).json()["refresh_token"]
+    now[0] += SESSION_TTL
+    assert client.post("/api/auth/refresh", json=original, headers=NATIVE_REFRESH).status_code == 401
+    assert client.post("/api/auth/refresh/confirm", json={"client": "native", "refresh_token": pending}).status_code == 401
 
 
 def test_sessions_survive_server_restart_and_expire(auth_env):

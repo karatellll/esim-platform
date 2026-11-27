@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { AppState } from 'react-native';
 
 import type { AuthUser, SessionResponse } from '../../../../packages/shared/contracts/auth';
-import { AuthApiError, updateProfile, logoutAuth, refreshAuth, sessionClient, verifyEmailCode } from '../api/auth';
+import { AuthApiError, confirmNativeRefresh, updateProfile, logoutAuth, refreshAuth, sessionClient, verifyEmailCode } from '../api/auth';
 import { loadOfflineUser, loadRefreshToken, saveOfflineUser, saveRefreshToken } from './sessionStorage';
 import { eraseOfflineOrders } from '../orders/offlineOrders';
 import { onUnauthorized } from './unauthorized';
@@ -21,6 +21,7 @@ type AuthContextValue = {
   saveProfile: (name: string, avatar: string | null) => Promise<void>;
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
+const refreshDelay = (session: SessionResponse) => Math.max(10_000, (session.expires_in - 30) * 1000);
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<SessionResponse | null>(null);
@@ -29,6 +30,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [offlineUserId, setOfflineUserId] = useState<string | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const sessionRef = useRef<SessionResponse | null>(null);
+  const refreshAt = useRef(0);
   const pendingRefresh = useRef<Promise<void> | null>(null);
   const signingOut = useRef(false);
 
@@ -38,6 +40,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       await saveRefreshToken(next.refresh_token);
     }
     sessionRef.current = next;
+    refreshAt.current = Date.now() + refreshDelay(next);
     setSession(next);
     setExpired(false);
     setOfflineUserId(next.user.id);
@@ -51,7 +54,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const work = (async () => {
       const remembered = await loadOfflineUser().catch(() => null);
       try {
-        const token = await loadRefreshToken();
+        const token = await loadRefreshToken() ?? sessionRef.current?.refresh_token;
         if (sessionClient === 'native' && !token) {
           if (remembered) {
             await saveOfflineUser(null).catch(() => {});
@@ -60,9 +63,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
           return;
         }
         if (sessionClient === 'native') setOfflineUserId(remembered);
-        await accept(await refreshAuth(token));
+        const next = await refreshAuth(token);
+        await accept(next);
+        if (sessionClient === 'native' && next.refresh_token) {
+          void confirmNativeRefresh(next.refresh_token).catch(() => {});
+        }
       } catch (error) {
-        if (error instanceof AuthApiError && error.status === 401) {
+        if (error instanceof AuthApiError && error.status === 401 && error.code === 'session_expired') {
           await saveRefreshToken(null).catch(() => {});
           await saveOfflineUser(null).catch(() => {});
           setExpired(!!(remembered || sessionRef.current));
@@ -90,14 +97,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (!session) return;
     let stopped = false;
+    let renewing = false;
     let timer: ReturnType<typeof setTimeout>;
     const renew = async () => {
+      if (renewing || AppState.currentState === 'background' || AppState.currentState === 'inactive') return;
+      clearTimeout(timer);
+      renewing = true;
       try { await restore(); }
       catch { if (!stopped) timer = setTimeout(renew, 60_000); }
+      finally { renewing = false; }
     };
-    timer = setTimeout(renew, Math.max(10_000, (session.expires_in - 30) * 1000));
+    timer = setTimeout(renew, Math.max(0, refreshAt.current - Date.now()));
     const listener = AppState.addEventListener('change', state => {
-      if (state === 'active') void restore().catch(() => {});
+      if (state === 'active' && Date.now() >= refreshAt.current) void renew();
     });
     return () => { stopped = true; clearTimeout(timer); listener.remove(); };
   }, [session, restore]);

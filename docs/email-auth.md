@@ -46,7 +46,8 @@ AUTH_DATABASE_PATH. В каталоге находятся также служе
 | --- | --- |
 | POST /api/auth/email/send-code | email; возвращает challenge_id, email, expires_in, resend_after_seconds |
 | POST /api/auth/email/verify | challenge_id, code, client (web/native); возвращает подтверждённого пользователя и сессию |
-| POST /api/auth/refresh | client; native также передаёт refresh_token, web использует HttpOnly cookie |
+| POST /api/auth/refresh | client; native также передаёт refresh_token, web использует HttpOnly cookie. Нативный заголовок `X-Tursim-Refresh-Mode: confirm` включает подтверждаемую ротацию |
+| POST /api/auth/refresh/confirm | native и сохранённый новый refresh_token. Подтверждает ротацию, ответ 204 |
 | POST /api/auth/logout | тот же формат; отзывает сессию и удаляет cookie, ответ 204 |
 | GET /api/me | Authorization: Bearer access_token; возвращает текущего пользователя |
 
@@ -78,7 +79,11 @@ API не возвращает код, пароль SMTP, HMAC или внутр�
 
 Access-токен действует 15 минут и находится в памяти приложения. Refresh-токен
 действует до 30 дней с момента входа; обновление не продлевает этот срок.
-При каждом refresh оба токена заменяются, предыдущие становятся недействительны.
+При обновлении access-токен заменяется. Нативное приложение подтверждает новый
+refresh-токен после записи в SecureStore. Если приложение закрылось до записи,
+повтор обновления возвращает тот же новый refresh-токен. Если запись прошла,
+повтор с новым токеном завершает предыдущую ротацию. Браузер и старые клиенты
+используют однократную ротацию, а срок сессии в обоих режимах остаётся исходным.
 В базе хранятся только SHA256-хеши случайных токенов. После выхода сессия отзывается.
 На iOS/Android refresh-токен хранится в Expo SecureStore (ThisDeviceOnly на iOS),
 в браузере — в HttpOnly/SameSite=Lax cookie с путём /api/auth. localStorage не используется.

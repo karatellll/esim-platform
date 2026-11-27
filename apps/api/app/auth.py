@@ -14,7 +14,7 @@ import threading
 import time
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Header, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.auth_models import ProfileUpdateRequest, AuthErrorResponse, AuthUser, MeResponse, RefreshRequest, SendCodeRequest, SendCodeResponse, SessionResponse, VerifyCodeRequest
@@ -75,6 +75,10 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES auth_users(id),
     access_hash TEXT NOT NULL UNIQUE, refresh_hash TEXT NOT NULL UNIQUE,
     access_expires_at INTEGER NOT NULL, expires_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auth_pending_refresh (
+    session_id TEXT PRIMARY KEY REFERENCES auth_sessions(id) ON DELETE CASCADE,
+    refresh_hash TEXT NOT NULL UNIQUE
 );
 PRAGMA user_version = 1;
 """
@@ -208,18 +212,52 @@ class AuthService:
             conn.commit()
             return result
 
-    def refresh(self, token: str):
+    def refresh(self, token: str, *, defer_rotation: bool = False):
+        if defer_rotation:
+            self.require_secret()
         now = int(self.clock())
+        token_hash = self.token_hash(token)
         with self.db() as conn:
             conn.execute("BEGIN IMMEDIATE")
-            row = conn.execute("SELECT * FROM auth_sessions WHERE refresh_hash=? AND expires_at>?", (self.token_hash(token), now)).fetchone()
+            row = conn.execute("SELECT * FROM auth_sessions WHERE refresh_hash=? AND expires_at>?", (token_hash, now)).fetchone()
+            if row is None and defer_rotation:
+                # A saved successor also proves the previous rotation completed on the device.
+                row = self.pending_refresh_session(conn, token_hash, now)
             if row is None:
                 raise AuthError(401, "session_expired", "Войдите по почте ещё раз.")
             user = self.user(conn.execute("SELECT * FROM auth_users WHERE id=?", (row["user_id"],)).fetchone())
-            access, refresh = secrets.token_urlsafe(32), secrets.token_urlsafe(48)
-            conn.execute("UPDATE auth_sessions SET access_hash=?,refresh_hash=?,access_expires_at=? WHERE id=?", (self.token_hash(access), self.token_hash(refresh), now + ACCESS_TTL, row["id"]))
+            access = secrets.token_urlsafe(32)
+            if defer_rotation:
+                # Retries with the current token return the same successor without storing it in plaintext.
+                refresh = self.digest("native-refresh:" + token)
+                conn.execute("INSERT INTO auth_pending_refresh VALUES (?,?) "
+                             "ON CONFLICT(session_id) DO UPDATE SET refresh_hash=excluded.refresh_hash",
+                             (row["id"], self.token_hash(refresh)))
+                current_hash = token_hash
+            else:
+                refresh = secrets.token_urlsafe(48)
+                current_hash = self.token_hash(refresh)
+                conn.execute("DELETE FROM auth_pending_refresh WHERE session_id=?", (row["id"],))
+            conn.execute("UPDATE auth_sessions SET access_hash=?,refresh_hash=?,access_expires_at=? WHERE id=?", (self.token_hash(access), current_hash, now + ACCESS_TTL, row["id"]))
             conn.commit()
             return SessionResponse(user=user, access_token=access, expires_in=ACCESS_TTL, refresh_token=refresh), row["expires_at"] - now
+
+    @staticmethod
+    def pending_refresh_session(conn, token_hash: str, now: int):
+        return conn.execute("SELECT s.* FROM auth_sessions s JOIN auth_pending_refresh p ON p.session_id=s.id "
+                            "WHERE p.refresh_hash=? AND s.expires_at>?", (token_hash, now)).fetchone()
+
+    def confirm_refresh(self, token: str):
+        now, token_hash = int(self.clock()), self.token_hash(token)
+        with self.db() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            pending = self.pending_refresh_session(conn, token_hash, now)
+            if pending is not None:
+                conn.execute("UPDATE auth_sessions SET refresh_hash=? WHERE id=?", (token_hash, pending["id"]))
+                conn.execute("DELETE FROM auth_pending_refresh WHERE session_id=?", (pending["id"],))
+            elif conn.execute("SELECT 1 FROM auth_sessions WHERE refresh_hash=? AND expires_at>?", (token_hash, now)).fetchone() is None:
+                raise AuthError(401, "session_expired", "Войдите по почте ещё раз.")
+            conn.commit()
 
     def me(self, access: str):
         with self.db() as conn:
@@ -230,7 +268,10 @@ class AuthService:
 
     def logout(self, refresh: str | None, access: str | None):
         with self.db() as conn:
-            conn.execute("DELETE FROM auth_sessions WHERE refresh_hash=? OR access_hash=?", (self.token_hash(refresh or ""), self.token_hash(access or "")))
+            refresh_hash = self.token_hash(refresh or "")
+            conn.execute("DELETE FROM auth_sessions WHERE refresh_hash=? OR access_hash=? "
+                         "OR id IN (SELECT session_id FROM auth_pending_refresh WHERE refresh_hash=?)",
+                         (refresh_hash, self.token_hash(access or ""), refresh_hash))
 
 
 def bearer(request: Request) -> str | None:
@@ -274,13 +315,24 @@ def verify_code(body: VerifyCodeRequest, request: Request, response: Response):
 
 
 @router.post("/api/auth/refresh", response_model=SessionResponse)
-def refresh(body: RefreshRequest, request: Request, response: Response):
+def refresh(body: RefreshRequest, request: Request, response: Response,
+            refresh_mode: str | None = Header(default=None, alias="X-Tursim-Refresh-Mode")):
     check_origin(request, required=body.client == "web")
     token = request.cookies.get(COOKIE_NAME) if body.client == "web" else (body.refresh_token.get_secret_value() if body.refresh_token else None)
     if not token:
         raise AuthError(401, "session_expired", "Войдите по почте ещё раз.")
     service = request.app.state.auth
-    return session_response(service.refresh(token), response, body.client, service.settings)
+    return session_response(service.refresh(token, defer_rotation=body.client == "native" and refresh_mode == "confirm"),
+                            response, body.client, service.settings)
+
+
+@router.post("/api/auth/refresh/confirm", status_code=204, summary="Подтвердить сохранение нового токена на устройстве")
+def confirm_refresh(body: RefreshRequest, request: Request, response: Response):
+    check_origin(request)
+    if body.client != "native" or not body.refresh_token:
+        raise AuthError(401, "session_expired", "Войдите по почте ещё раз.")
+    request.app.state.auth.confirm_refresh(body.refresh_token.get_secret_value())
+    response.headers["Cache-Control"] = "no-store"
 
 
 @router.post("/api/auth/logout", status_code=204)
