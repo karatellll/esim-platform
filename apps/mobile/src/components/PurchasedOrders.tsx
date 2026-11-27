@@ -1,12 +1,11 @@
 import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
-import { useWindowDimensions, View as NativeView, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { Platform, useWindowDimensions, View as NativeView, type NativeScrollEvent, type NativeSyntheticEvent, type ViewStyle } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
 import type { CatalogEsim } from '../../../../packages/shared/contracts/catalog';
 import { orderCountry, orderDataLabel, orderPrice, orderStateLabel } from '../orders/display';
-import { trafficDisplay } from '../orders/installation';
-import { elapsedDuration, groupOrders, historyMonth, type DisplayOrder } from '../orders/myEsims';
+import { elapsedDuration, esimDisplayStatus, groupOrders, historyMonth, trafficDisplay, type DisplayOrder } from '../orders/myEsims';
 import { formatDuration } from '../tariffs/tariffs';
 import { colors } from '../theme';
 import { fonts, StyleSheet } from '../ui/design';
@@ -94,8 +93,10 @@ function ActiveOrders({ active, countries, onSelect, leftInset, rightInset }: Pi
   const width = measured || windowWidth;
   const cardWidth = Math.max(1, width - leftInset - rightInset - cardPeek);
   const stride = cardWidth + cardGap;
+  const pageOffsets = active.map((_, page) => page * stride);
   const lastIndex = active.length - 1;
   const selected = Math.min(index, lastIndex);
+  const web = Platform.OS === 'web';
 
   useEffect(() => {
     if (index > lastIndex) setIndex(lastIndex);
@@ -105,7 +106,7 @@ function ActiveOrders({ active, countries, onSelect, leftInset, rightInset }: Pi
     setIndex(Math.max(0, Math.min(lastIndex, Math.round(event.nativeEvent.contentOffset.x / stride))));
   };
   const select = (next: number) => {
-    scroll.current?.scrollTo({ x: next * stride, animated: true });
+    scroll.current?.scrollTo({ x: pageOffsets[next], animated: true });
     setIndex(next);
   };
   const render = (order: DisplayOrder) => <ActiveCard order={order} country={countries?.get(order.esim.id)} onSelect={onSelect} />;
@@ -115,7 +116,8 @@ function ActiveOrders({ active, countries, onSelect, leftInset, rightInset }: Pi
     {active.length === 1 ? render(active[0]) : <>
       <NativeView style={{ marginLeft: -leftInset, marginRight: -rightInset }} onLayout={event => setMeasured(event.nativeEvent.layout.width)}>
         <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled directionalLockEnabled
-          decelerationRate="fast" snapToInterval={stride} disableIntervalMomentum onScroll={onScroll} scrollEventThrottle={16}
+          decelerationRate="fast" snapToOffsets={web ? undefined : pageOffsets} pagingEnabled={web} disableIntervalMomentum
+          style={web ? { scrollPaddingLeft: leftInset } as ViewStyle : undefined} onScroll={onScroll} scrollEventThrottle={16}
           contentContainerStyle={{ paddingLeft: leftInset, paddingRight: Math.max(0, width - leftInset - cardWidth), gap: cardGap }}
           testID="my-esims-carousel">
           {active.map(order => <NativeView key={order.id} style={{ width: cardWidth }}>{render(order)}</NativeView>)}
@@ -138,15 +140,20 @@ export function PurchasedOrders({ orders, countries, leftInset, rightInset, onSe
     {waiting.length > 0 && <>
       {heading('Ждёт установки')}
       {waiting.map(order => {
-        const installed = order.esim_status === 'installed';
-        return <View key={order.id} style={styles.waitingRow} testID={`my-esims-waiting-${order.id}`}>
-          <CountryFlag country={countries?.get(order.esim.id) ?? orderCountry(order)} size={40} />
-          <Text style={[styles.copy, styles.buttonText]} numberOfLines={2}>{order.esim.name} · {orderDataLabel(order)}</Text>
-          <Pressable onPress={() => onSelect(order.id, installed ? 'details' : 'install')} accessibilityRole="button"
-            accessibilityLabel={`${installed ? 'Детали' : 'Установить'} — ${order.esim.name}`}
-            testID={`my-esims-install-${order.id}`} style={({ pressed }) => [styles.install, pressed && styles.pressed]}>
-            <Text style={styles.installText}>{installed ? 'Детали' : 'Установить'}</Text>
+        const installed = esimDisplayStatus(order) === 'installed';
+        return <View key={order.id} style={[styles.waitingRow, styles.installRow]} testID={`my-esims-waiting-${order.id}`}>
+          <Pressable onPress={() => onSelect(order.id, 'details')} accessibilityRole="button"
+            accessibilityLabel={`Детали — ${order.esim.name}, ${orderDataLabel(order)}`} testID={`my-esims-details-${order.id}`}
+            style={({ pressed }) => [styles.waitingDetails, pressed && styles.pressed]}>
+            <CountryFlag country={countries?.get(order.esim.id) ?? orderCountry(order)} size={40} />
+            <Text style={[styles.copy, styles.buttonText]} numberOfLines={2}>{order.esim.name} · {orderDataLabel(order)}</Text>
+            {installed && <View style={styles.install}><Text style={styles.installText}>Детали</Text></View>}
           </Pressable>
+          {!installed && <Pressable onPress={() => onSelect(order.id, 'install')} accessibilityRole="button"
+            accessibilityLabel={`Установить — ${order.esim.name}`}
+            testID={`my-esims-install-${order.id}`} style={({ pressed }) => [styles.install, pressed && styles.pressed]}>
+            <Text style={styles.installText}>Установить</Text>
+          </Pressable>}
         </View>;
       })}
     </>}
@@ -208,6 +215,8 @@ const styles = StyleSheet.create({
   page: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.3)' },
   currentPage: { width: 18, backgroundColor: colors.text },
   waitingRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 14, paddingRight: 12, paddingVertical: 12, borderRadius: 20, borderCurve: 'continuous', backgroundColor: 'rgba(38,38,41,0.5)' },
+  installRow: { paddingLeft: 0, paddingVertical: 0 },
+  waitingDetails: { flex: 1, minWidth: 0, alignSelf: 'stretch', paddingLeft: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
   install: { height: 36, borderRadius: 18, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.tariffAccent },
   installText: { fontSize: 14, lineHeight: 20, fontWeight: '600', color: colors.text },
   history: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4, rowGap: 8 },

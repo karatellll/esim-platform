@@ -18,7 +18,7 @@ function assertGlassClose(button) {
   assert.equal(button.findByType('Image').props.source, '../../assets/checkout/close.svg');
 }
 
-function app({ summary = async () => ({ data: base }), create = async () => ({ data: { id: 'order' } }), tariffsByEsim = {}, categories = [], signedIn = true, platform = 'web', orders = [] } = {}) {
+function app({ summary = async () => ({ data: base }), create = async () => ({ data: { id: 'order' } }), tariffsByEsim = {}, categories = [], signedIn = true, platform = 'web', orders = [], orderStatusById = {} } = {}) {
   const cache = new Map(), calls = [], navigations = [];
   const animations = [], scrollCalls = [];
   const keyboardEvents = new Map();
@@ -30,15 +30,18 @@ function app({ summary = async () => ({ data: base }), create = async () => ({ d
     Value: class {
       constructor(value) { this.value = value; }
       setValue(value) { this.value = value; }
+      interpolate(config) { return config; }
       stopAnimation() {}
     },
     timing: (value, { toValue, duration }) => ({
       start(done) { animations.push({ toValue, duration }); value.setValue(toValue); done?.({ finished: true }); },
     }),
+    loop: animation => ({ start: animation.start, stop: () => animations.push('loop stopped') }),
   };
   const mocks = {
     'react-native': { ActivityIndicator: 'ActivityIndicator', View: host('NativeView'), Pressable: host('NativePressable'), Animated,
-      Easing: { out: easing => easing, cubic: x => x ** 3 },
+      BackHandler: { addEventListener: () => ({ remove() {} }) },
+      Easing: { out: easing => easing, cubic: x => x ** 3, linear: x => x },
       PanResponder: { create: panHandlers => ({ panHandlers }) },
       Keyboard: {
       dismiss() {}, isVisible: () => false,
@@ -66,6 +69,7 @@ function app({ summary = async () => ({ data: base }), create = async () => ({ d
     '/hooks/useUserOrders': { useUserOrders: () => ({ state: { status: 'ready', dates: {}, response: {
       data: orders, meta: { has_more: false, next_cursor: null },
     } } }) },
+    '/hooks/useOrderStatus': { useOrderStatus: id => orderStatusById[id] ?? { order: null, loading: true, error: null } },
     '/auth/AuthProvider': { useAuth: () => ({ user: signedIn ? { id: 'user', email: 'test@example.com' } : null, accessToken: signedIn ? 'local-test' : null, loading: false }) },
     '/api/auth': { AuthApiError: class extends Error {} },
     '/api/checkout': { CheckoutApiError: class extends Error {}, getCheckoutSummary: async (body, signal) => { calls.push(body); return summary(body, signal); }, createCheckoutOrder: async body => { calls.push(body); return create(body); } },
@@ -642,23 +646,28 @@ test('iOS sheets claim header touches and dismiss on a downward pull from the to
   }
 });
 
-test('My eSIMs snaps between active cards and routes installation, top-up and trip history to the selected order', async () => {
+test('My eSIMs opens the QR over the list and opens details from the order card', async () => {
   const order = (id, name, status, state = 'delivered') => ({
     id, order_number: 1000, state, esim_status: status, esim: { id, name, image: null }, tariff,
-    total_amount_minor: 890, total_currency: 'RUB', remaining: { amount: 3.2, unit: 'GB' },
+    total_amount_minor: 889.5, total_currency: 'RUB', remaining: { amount: 3.2, unit: 'GB' },
     created_at: '2026-07-10T10:00:00Z',
   });
   const orders = [
-    order('tr', 'Турция', 'activated'), order('ae', 'ОАЭ', 'active'), order('ge', 'Грузия', 'issued'),
+    order('tr', 'Турция', 'activated'), order('ae', 'ОАЭ', 'active'),
+    { ...order('ge', 'Грузия', 'activated'), remaining: tariff.data_amount },
     order('jp', 'Япония', 'expired'), order('am', 'Армения', 'depleted'), order('pay', 'Франция', null, 'pending_payment'),
+    order('it', 'Италия', 'installed'),
   ];
-  const a = app({ orders });
+  const orderStatusById = {};
+  const a = app({ orders, orderStatusById });
   const screen = await a.mount('/screens/MyEsimsScreen.tsx');
   const node = (id, type = 'Pressable') => a.node(screen, id, type);
   try {
     const carousel = node('my-esims-carousel', 'ScrollView');
     assert.equal(carousel.props.horizontal, true);
-    assert.equal(carousel.props.snapToInterval, 335);
+    assert.equal(carousel.props.pagingEnabled, true);
+    assert.equal(carousel.props.style.scrollPaddingLeft, 12);
+    assert.ok(node('my-esims-order-pay').findAllByType('Text').some(text => String(text.props.children).replace(/\s/g, ' ') === '890 ₽'));
     for (const id of ['tr', 'ae']) {
       const card = node(`my-esims-active-${id}`, 'View');
       assert.equal(card.findAllByType('Text').some(text => text.props.children === 'в сети'), false);
@@ -669,10 +678,43 @@ test('My eSIMs snaps between active cards and routes installation, top-up and tr
     await act(() => node('my-esims-page-1').props.onPress());
     assert.equal(node('my-esims-page-1').props.accessibilityState.selected, true);
 
+    await act(() => node('my-esims-install-ge').props.onPress());
+    assert.deepEqual(a.navigations, []);
+    assert.equal(node('my-esims-active-ge', 'View'), undefined);
+    assert.ok(node('my-esims-scroll', 'ScrollView'));
+    assert.equal(node('installation-tab-qr').props.accessibilityState.selected, true);
+    assert.equal(node('installation-refresh').props.disabled, true);
+    assert.equal(node('installation-qr-image', 'Image'), undefined);
+    const qrUrl = 'https://example.com/installation.png';
+    orderStatusById.ge = { order: { ...orders[2], payment: { state: 'captured' }, provision: { qr_code_url: qrUrl } }, loading: false, error: null };
+    await act(() => screen.update(React.createElement(screen.root.type)));
+    assert.deepEqual(node('installation-qr-image', 'Image').props.source, { uri: qrUrl });
+    for (const [action, source] of [['share', '../../assets/mvp/f4b30.svg'], ['save', '../../assets/installation/download.svg']]) {
+      const icon = node(`installation-${action}`).findByType('Image');
+      assert.equal(icon.props.source, source);
+      assert.deepEqual(icon.props.style, { width: 20, height: 20 });
+    }
+    await act(() => node('installation-tab-quick').props.onPress());
+    const toggle = () => node('installation-instructions');
+    const installationScroll = node('installation-scroll', 'ScrollView');
+    assert.equal(installationScroll.findAllByProps({ testID: 'installation-instructions' }).length, 0);
+    await act(() => toggle().props.onPress());
+    assert.equal(toggle().findByType('Text').props.children, 'Свернуть инструкцию');
+    const instruction = node('installation-instruction-content', 'View');
+    await act(() => instruction.props.onLayout({ nativeEvent: { layout: { y: 432 } } }));
+    assert.deepEqual(a.scrollCalls.at(-1), { y: 418, animated: true });
+    await act(() => toggle().props.onPress());
+    assert.equal(node('installation-instruction-content', 'View'), undefined);
+    assert.equal(toggle().findByType('Text').props.children, 'Подробная инструкция');
+    await act(() => node('installation-close').props.onPress());
+    assert.equal(node('installation-qr-image', 'Image'), undefined);
+    assert.equal(node('my-esims-install-it'), undefined);
+
     for (const [button, params] of [
       ['details-ae', { orderId: 'ae', details: true }],
       ['top-up-tr', { orderId: 'tr', details: true, openTopUp: true }],
-      ['install-ge', { orderId: 'ge', details: true, openInstallation: true }],
+      ['details-ge', { orderId: 'ge', details: true }],
+      ['details-it', { orderId: 'it', details: true }],
       ['history-jp', { orderId: 'jp', details: true }],
       ['order-pay', { orderId: 'pay', details: true }],
     ]) {
@@ -681,6 +723,104 @@ test('My eSIMs snaps between active cards and routes installation, top-up and tr
     }
     assert.ok(node('my-esims-history-am'));
     assert.equal(node('my-esims-add'), undefined);
+  } finally {
+    await act(() => screen.unmount());
+  }
+});
+
+test('on iOS and Android the active eSIM carousel snaps horizontally in both directions', async () => {
+  const orders = ['tr', 'ae'].map((id, index) => ({
+    id, esim: { id, name: id, image: null }, order_number: index + 1, state: 'delivered', esim_status: 'active',
+    tariff, remaining: null, created_at: '2026-07-10T10:00:00Z',
+  }));
+  for (const platform of ['ios', 'android']) {
+    const a = app({ orders, platform });
+    const screen = await a.mount('/screens/MyEsimsScreen.tsx');
+    const carousel = a.node(screen, 'my-esims-carousel', 'ScrollView');
+    const selected = page => a.node(screen, `my-esims-page-${page}`, 'Pressable').props.accessibilityState.selected;
+    try {
+      assert.equal(a.node(screen, 'my-esims-scroll', 'ScrollView').props.nestedScrollEnabled, true);
+      assert.equal(carousel.props.horizontal, true);
+      assert.equal(carousel.props.nestedScrollEnabled, true);
+      assert.equal(carousel.props.directionalLockEnabled, true);
+      assert.deepEqual(carousel.props.snapToOffsets, [0, 335]);
+      assert.equal(selected(1), true);
+      await act(() => carousel.props.onScroll({ nativeEvent: { contentOffset: { x: 335 } } }));
+      assert.equal(selected(2), true);
+      await act(() => carousel.props.onScroll({ nativeEvent: { contentOffset: { x: 0 } } }));
+      assert.equal(selected(1), true);
+    } finally {
+      await act(() => screen.unmount());
+    }
+  }
+});
+
+test('opening details skips the payment check while a pending payment can still be opened', async () => {
+  const orderStatusById = {};
+  const a = app({ orderStatusById });
+  const props = { route: { params: { orderId: 'order', details: true } }, navigation: a.props.navigation };
+  const screen = await a.mount('/screens/OrderStatusScreen.tsx', props);
+  const node = (id, type) => a.node(screen, id, type);
+  try {
+    assert.ok(node('order-details-loading', 'ActivityIndicator'));
+    assert.equal(node('order-state', 'Text'), undefined);
+    const order = { id: 'order', order_number: 1000, esim: { id: country.id, name: country.display_name, image: null },
+      tariff, esim_status: 'activated', remaining: tariff.data_amount, total_amount_minor: 890, total_currency: 'RUB' };
+    orderStatusById.order = { order: { ...order, state: 'delivered', payment: { state: 'captured' } }, loading: false, error: null };
+    await act(() => screen.update(React.createElement(screen.root.type, props)));
+    assert.ok(screen.root.findAllByType('Text').some(text => text.props.children === country.display_name));
+    assert.ok(screen.root.findAllByType('Text').some(text => text.props.children === 'Готова к установке'));
+    assert.equal(node('order-state', 'Text'), undefined);
+    let checks = 0;
+    orderStatusById.order = { order: { ...order, state: 'pending_payment', payment: { state: 'pending', url: 'https://example.com/pay' } }, loading: false, error: null, reload: () => { checks++; } };
+    await act(() => screen.update(React.createElement(screen.root.type, props)));
+    assert.equal(node('order-state', 'Text').props.children, 'Ожидаем оплату');
+    assert.ok(node('order-payment-spinner', 'View'));
+    assert.deepEqual(a.animations.at(-1), { toValue: 1, duration: 1000 });
+    const pay = node('order-open-payment', 'Pressable');
+    const refresh = node('order-refresh', 'Pressable');
+    assert.equal(refresh.props.style[0], pay.props.style[0]);
+    assert.equal(refresh.props.style[0].height, 56);
+    assert.equal(refresh.findByType('Text').props.children, 'Проверить оплату');
+    await act(() => refresh.props.onPress());
+    assert.equal(checks, 1);
+    assert.equal(node('order-my-esims', 'Pressable'), undefined);
+    props.navigation.canGoBack = () => true;
+    await act(() => node('order-back', 'Pressable').props.onPress());
+    assert.equal(a.navigations.at(-1), 'back');
+    props.navigation.canGoBack = () => false;
+    await act(() => node('order-back', 'Pressable').props.onPress());
+    assert.deepEqual(a.navigations.at(-1), ['Main', { screen: 'MyEsims' }]);
+  } finally {
+    await act(() => screen.unmount());
+  }
+  assert.equal(a.animations.at(-1), 'loop stopped');
+});
+
+test('the purchased eSIM shows the catalog network and the receipt on its own row', async () => {
+  const order = { id: 'purchased', order_number: 10001, esim: { id: country.id, name: country.display_name, image: null },
+    state: 'delivered', esim_status: 'installed', tariff, remaining: tariff.data_amount, total_amount_minor: 169, total_currency: 'RUB',
+    payment: { state: 'captured' }, provision: null };
+  const a = app({ orderStatusById: { [order.id]: { order, loading: false, error: null } }, tariffsByEsim: {
+    [country.id]: { esim: { ...country, network: 'Turkcell · 5G' }, tariffs: [tariff] },
+  } });
+  const screen = await a.mount('/screens/OrderStatusScreen.tsx', { route: { params: { orderId: order.id } }, navigation: a.props.navigation });
+  const node = (id, type) => a.node(screen, id, type);
+  try {
+    const text = screen.root.findAllByType('Text');
+    assert.equal(text.find(item => item.props.children === 'Готово — eSIM').props.numberOfLines, 1);
+    assert.ok(text.some(item => item.props.children === 'Turkcell · 5G'));
+    assert.ok(text.some(item => item.props.children === 'ждёт поездки'));
+    const payment = node('purchased-payment-summary', 'View');
+    assert.equal(payment.findByType('Text').props.children.join('').replace(/\s/g, ' '), 'Оплачено 169 ₽. Заказ № 10001');
+    assert.equal(payment.findAllByType('Image').length, 0);
+    assert.equal(node('purchased-cashback', 'View'), undefined);
+    assert.ok(screen.root.findAllByType('Image').some(image => image.props.source === '../../assets/installation/wifi.svg'));
+    await act(() => node('purchased-install', 'Pressable').props.onPress());
+    assert.ok(node('installation-sheet', 'View'));
+    await act(() => node('installation-close', 'Pressable').props.onPress());
+    await act(() => node('purchased-later', 'Pressable').props.onPress());
+    assert.deepEqual(a.navigations.at(-1), ['Main', { screen: 'MyEsims' }]);
   } finally {
     await act(() => screen.unmount());
   }

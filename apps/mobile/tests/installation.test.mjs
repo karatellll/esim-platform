@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { appleInstallationUrl, manualDetails, supportsQuickInstall, trafficDisplay } from '../src/orders/installation.ts';
+import { appleInstallationUrl, manualDetails, supportsQuickInstall } from '../src/orders/installation.ts';
+import { trafficDisplay } from '../src/orders/myEsims.ts';
 
 const order = (extra = {}) => ({ state: 'delivered', payment: { state: 'captured' },
   tariff: { data_amount: { amount: 5, unit: 'GB' } }, remaining: null, items: [{ display_name: '5 ГБ' }],

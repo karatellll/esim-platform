@@ -2,8 +2,8 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
-import { useMemo, type ReactNode } from 'react';
-import { Platform } from 'react-native';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { Modal, Platform } from 'react-native';
 import { ScrollView } from '../ui/ScrollView';
 import { Pressable, View } from '../ui/Surface';
 import { fonts, StyleSheet } from '../ui/design';
@@ -11,12 +11,15 @@ import { Text } from '../ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LoadFailure } from '../components/ServiceState';
+import { InstallationSheet } from '../components/InstallationSheet';
 import { useOnline } from '../service/connectivity';
 import { useAuth } from '../auth/AuthProvider';
 import type { RootStackParamList } from '../navigation/stack';
 import type { RootTabParamList } from '../navigation/tabs';
 import { colors, getTabBarBottom, tabBarLayout } from '../theme';
 import { useUserOrders } from '../hooks/useUserOrders';
+import { useOrderStatus } from '../hooks/useOrderStatus';
+import { loadOrderInstallationQr } from '../orders/installationActions';
 import { PurchasedOrders, type OrderAction } from '../components/PurchasedOrders';
 import { MyEsimsSkeleton } from '../components/SkeletonLayouts';
 import { useSkeletonGate } from '../hooks/useSkeletonGate';
@@ -46,7 +49,7 @@ export function MyEsimsLayout({ populated, children }: {
 
   return <View style={styles.screen} testID="screen-esims">
     <ScrollView style={styles.screen} testID="my-esims-scroll" showsVerticalScrollIndicator={false}
-      contentInsetAdjustmentBehavior="never" contentContainerStyle={[
+      nestedScrollEnabled directionalLockEnabled contentInsetAdjustmentBehavior="never" contentContainerStyle={[
         styles.content,
         { paddingTop: topInset + (populated ? 12 : 16), paddingBottom: Math.max(120, bottomInset + tabBarLayout.height + 20),
           paddingLeft: leftInset, paddingRight: rightInset },
@@ -75,22 +78,40 @@ function CatalogPurchasedOrders(props: Omit<Parameters<typeof PurchasedOrders>[0
   return <PurchasedOrders {...props} countries={countries} />;
 }
 
+function InstallOrderModal({ orderId, onClose }: { orderId: string; onClose: () => void }) {
+  const auth = useAuth();
+  const insets = useSafeAreaInsets();
+  const status = useOrderStatus(orderId);
+  const order = status.order?.state === 'delivered' && status.order.payment.state === 'captured' ? status.order : null;
+  const statusError = status.notFound ? 'Заказ не найден.' : status.error ?? (status.order && !order ? 'Установка пока недоступна для этого заказа.' : null);
+  return <Modal visible transparent animationType="none" onRequestClose={onClose}>
+    <View style={styles.installationModal}>
+      <InstallationSheet order={order} onClose={onClose} initialMethod="qr"
+        topInset={Platform.OS === 'web' ? 48 : insets.top} bottomInset={Platform.OS === 'web' ? 42 : Math.max(insets.bottom, 12) + 8}
+        onRefresh={status.reload} refreshing={status.loading} statusError={statusError}
+        loadQr={() => loadOrderInstallationQr(order, auth.accessToken)} />
+    </View>
+  </Modal>;
+}
+
 export function MyEsimsScreen() {
   const navigation = useNavigation<Navigation>();
   const auth = useAuth();
   const online = useOnline();
   const hasAccount = !!(auth.user || (!online && auth.offlineUserId));
+  const [installationOrderId, setInstallationOrderId] = useState<string | null>(null);
+  const closeInstallation = useCallback(() => setInstallationOrderId(null), []);
   const orders = useUserOrders();
   const loading = (auth.loading || hasAccount) && orders.state.status === 'loading';
   const skeleton = useSkeletonGate(loading);
   const failed = hasAccount && (orders.state.status === 'error' || skeleton.timedOut);
   const state = hasAccount && orders.state.status === 'ready' && orders.state.response.data.length ? orders.state : null;
-  const select = (orderId: string, action: OrderAction) => navigation.push('OrderStatus', {
-    orderId, details: true,
-    ...(action === 'install' ? { openInstallation: true } : action === 'top-up' ? { openTopUp: true } : {}),
-  });
+  const select = (orderId: string, action: OrderAction) => {
+    if (action === 'install') setInstallationOrderId(orderId);
+    else navigation.push('OrderStatus', { orderId, details: true, ...(action === 'top-up' ? { openTopUp: true } : {}) });
+  };
 
-  return <MyEsimsLayout populated={!!state}>
+  return <><MyEsimsLayout populated={!!state}>
     {insets => failed ? <LoadFailure title="eSIM не загрузились" card testID="my-esims-load-error"
         onRetry={() => { skeleton.restart(); orders.reload(); }} />
         : loading ? skeleton.visible ? <MyEsimsSkeleton /> : null
@@ -130,12 +151,15 @@ export function MyEsimsScreen() {
           </Pressable>}
         </View>
       </View>}
-  </MyEsimsLayout>;
+  </MyEsimsLayout>
+    {hasAccount && installationOrderId && <InstallOrderModal key={installationOrderId} orderId={installationOrderId} onClose={closeInstallation} />}
+  </>;
 }
 
 const fontFamily = fonts.text;
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+  installationModal: { flex: 1 },
   content: { width: '100%', gap: 12 },
   header: { height: 42, paddingHorizontal: 12, paddingBottom: 4, justifyContent: 'center' },
   populatedHeader: { height: 44 },

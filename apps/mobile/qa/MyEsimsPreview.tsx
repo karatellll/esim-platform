@@ -61,20 +61,22 @@ function demoOrders() {
 
 export function MyEsimsPreview() {
   const [orders, setOrders] = useState(demoOrders);
-  const [route, setRoute] = useState<{ id: string; action: OrderAction } | null>(null);
-  const [installationOpen, setInstallationOpen] = useState(false);
-  const closeInstallation = useCallback(() => setInstallationOpen(false), []);
+  const [route, setRoute] = useState<{ id: string; action: Exclude<OrderAction, 'install'> } | null>(null);
+  const [installationOrderId, setInstallationOrderId] = useState<string | null>(null);
+  const closeInstallation = useCallback(() => setInstallationOrderId(null), []);
   const open = (id: string, action: OrderAction) => {
-    setRoute({ id, action });
-    setInstallationOpen(action === 'install');
+    if (action === 'install') setInstallationOrderId(id);
+    else setRoute({ id, action });
   };
   const back = () => { closeInstallation(); setRoute(null); };
   const catalog = () => window.location.assign('/countries');
   const order = orders.find(item => item.id === route?.id);
+  const installationOrder = orders.find(item => item.id === installationOrderId);
+  const selectedOrder = installationOrder ?? order;
   const activate = () => {
-    if (!order) return;
+    if (!selectedOrder) return;
     const now = Date.now();
-    setOrders(items => items.map(item => item.id === order.id ? { ...item, esim_status: 'activated',
+    setOrders(items => items.map(item => item.id === selectedOrder.id ? { ...item, esim_status: 'activated',
       activated_at: new Date(now).toISOString(), remaining: item.tariff.data_amount,
       expires_at: new Date(now + item.tariff.duration.amount * day).toISOString(),
     } : item));
@@ -85,7 +87,7 @@ export function MyEsimsPreview() {
     <View style={styles.preview}>
       <View style={styles.banner}>
         <Text style={styles.bannerText}>Демо · тестовые eSIM</Text>
-        {order?.esim_status === 'issued' && <Pressable onPress={activate} accessibilityRole="button" testID="demo-esim-activate">
+        {selectedOrder?.esim_status === 'issued' && <Pressable onPress={activate} accessibilityRole="button" testID="demo-esim-activate">
           <Text style={styles.link}>Сымитировать активацию</Text>
         </Pressable>}
         <Pressable onPress={() => window.location.assign('/my-esims')} accessibilityRole="button">
@@ -100,10 +102,11 @@ export function MyEsimsPreview() {
         </View>
         {order && <EsimDetailsView key={order.id} order={order} country={countries.get(order.esim.id)}
           initialTopUp={route?.action === 'top-up'} topInset={48} bottomInset={42} onBack={back}
-          onCatalog={catalog} onInstall={() => setInstallationOpen(true)} />}
-        {order && installationOpen && <InstallationSheet order={order} topInset={48} bottomInset={42}
+          onCatalog={catalog} onInstall={() => setInstallationOrderId(order.id)} />}
+        {installationOrder && <InstallationSheet order={installationOrder} topInset={48} bottomInset={42}
+          initialMethod={order ? undefined : 'qr'}
           onClose={closeInstallation} onRefresh={() => {}} refreshing={false} previewQuickSupported={false}
-          loadQr={async () => (await fetch(order.provision!.qr_code_url)).blob()} />}
+          loadQr={async () => (await fetch(installationOrder.provision!.qr_code_url)).blob()} />}
       </View>
     </View>
   </SafeAreaProvider>;

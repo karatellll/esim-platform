@@ -15,12 +15,12 @@ const localImage = (asset: number) => {
 };
 const fixture = (): OrderData => ({
   id: '00000000-0000-4000-8000-000000000001', order_number: 10001,
-  state: 'delivered', total_amount_minor: 890, total_currency: 'RUB', created_at: '2026-10-21T10:00:00Z',
+  state: 'delivered', total_amount_minor: 169, total_currency: 'RUB', created_at: '2026-10-21T10:00:00Z',
   esim: { id: '00000000-0000-4000-8000-000000000002', name: 'Турция', image: localImage(require('../assets/home/flag-tr.svg')) },
   tariff: { id: '00000000-0000-4000-8000-000000000003', data_amount: { amount: 5, unit: 'GB' }, duration: { amount: 15, unit: 'day' } },
-  remaining: { amount: 5, unit: 'GB' }, esim_status: 'issued',
-  payment: { state: 'captured', amount_minor: 890, currency: 'RUB', url: null, expires_at: null, failure_code: null },
-  items: [{ id: '00000000-0000-4000-8000-000000000004', storefront_plan_id: '00000000-0000-4000-8000-000000000003', display_name: '5 ГБ / 15 дней', price_amount_minor: 890, price_currency: 'RUB', data_amount: { amount: 5, unit: 'GB' }, duration: { amount: 15, unit: 'day' } }],
+  remaining: { amount: 5, unit: 'GB' }, esim_status: 'installed',
+  payment: { state: 'captured', amount_minor: 169, currency: 'RUB', url: null, expires_at: null, failure_code: null },
+  items: [{ id: '00000000-0000-4000-8000-000000000004', storefront_plan_id: '00000000-0000-4000-8000-000000000003', display_name: '5 ГБ / 15 дней', price_amount_minor: 169, price_currency: 'RUB', data_amount: { amount: 5, unit: 'GB' }, duration: { amount: 15, unit: 'day' } }],
   provision: { state: 'delivered', iccid: 'TEST-ONLY', activation_code: 'LPA:1$consumer.rsp.esim.ru$EXAMPLE-NOT-ACTIVE', smdp_address: 'consumer.rsp.esim.ru', matching_id: 'EXAMPLE-NOT-ACTIVE', qr_code_url: localImage(require('./fixture-qr.svg')), qr_code_url_expires: null },
   activated_at: null, expires_at: null, price_changed: false,
 });
@@ -31,7 +31,9 @@ function Phone({ initial }: { initial?: InstallationMethod }) {
   const [order] = useState(fixture);
   return <View style={styles.scaled}>
     <View style={styles.phone}>
-      <PurchasedEsimView order={order} topInset={48} bottomInset={42} onInstall={() => setOpen(true)} onLater={close} />
+      <PurchasedEsimView order={order} cashbackRub={44} topInset={48} bottomInset={42} onInstall={() => setOpen(true)} onLater={close}
+        country={{ id: order.esim.id, display_name: order.esim.name, image_url: order.esim.image, country_iso2: null,
+          min_price_amount: null, min_price_currency: null, network: 'Turkcell · 5G' }} />
       {open && <InstallationSheet order={order} topInset={48} bottomInset={42} onClose={close} onRefresh={() => {}} refreshing={false} initialMethod={initial} previewQuickSupported loadQr={() => Promise.reject(new Error('Это превью с тестовыми данными. Реальный QR доступен после покупки.'))} />}
     </View>
   </View>;

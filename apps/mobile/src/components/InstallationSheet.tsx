@@ -3,7 +3,7 @@ import { modalDragStyle, useModalSwipe } from '../hooks/useModalSwipe';
 import { Image } from 'expo-image';
 import { useOnline } from '../service/connectivity';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, Linking, Platform, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, BackHandler, Linking, Platform, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import { ScrollView } from '../ui/ScrollView';
 import { AnimatedView, Pressable, View } from '../ui/Surface';
 import { fonts, StyleSheet } from '../ui/design';
@@ -16,13 +16,16 @@ import { colors } from '../theme';
 const assets = {
   heading: require('../../assets/installation/install-heading.svg'),
   phone: require('../../assets/installation/phone.svg'),
-  qr: require('../../assets/installation/qr.svg'),
 };
+const qrActions = [
+  { id: 'share', label: 'Поделиться', icon: require('../../assets/mvp/f4b30.svg') },
+  { id: 'save', label: 'Сохранить', icon: require('../../assets/installation/download.svg') },
+] as const;
 const methods = [{ id: 'quick', label: 'Быстро' }, { id: 'qr', label: 'QR-код' }, { id: 'manual', label: 'Вручную' }] as const;
 const steps = ['Настройки → Сотовая связь', 'Добавить eSIM → Ввести вручную', 'Вставьте адрес и код'];
 
 type Props = {
-  order: OrderData; topInset: number; bottomInset: number; onClose: () => void;
+  order: OrderData | null; topInset: number; bottomInset: number; onClose: () => void;
   onRefresh: () => void; refreshing: boolean; loadQr: () => Promise<Blob>;
   initialMethod?: InstallationMethod; previewQuickSupported?: boolean;
   statusError?: string | null;
@@ -36,17 +39,19 @@ export function InstallationSheet({ order, topInset, bottomInset, onClose, onRef
   const [copied, setCopied] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [instruction, setInstruction] = useState(false);
+  const contentScroll = useRef<ScrollView>(null);
+  const revealInstruction = useRef(false);
   const online = useOnline();
   const [qrFailed, setQrFailed] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const mounted = useRef(true);
   const exporting = useRef(false);
-  const detail = manualDetails(order);
-  const quickUrl = appleInstallationUrl(order);
+  const detail = order ? manualDetails(order) : { address: '', matchingId: '' };
+  const quickUrl = order ? appleInstallationUrl(order) : null;
   const quickSupported = previewQuickSupported ?? supportsQuickInstall(Platform.OS, Platform.Version,
     Platform.OS === 'web' && typeof navigator !== 'undefined' ? navigator.userAgent : '', Platform.OS === 'ios' && Platform.isPad);
-  const qrUrl = order.provision?.qr_code_url;
-  const expires = order.provision?.qr_code_url_expires;
+  const qrUrl = order?.provision?.qr_code_url;
+  const expires = order?.provision?.qr_code_url_expires;
   const qrReady = !!qrUrl && !qrFailed && (!expires || Date.parse(expires) > Date.now());
   const canExportQr = qrReady && (qrUrl?.startsWith('file:') ? Platform.OS === 'ios' : online);
 
@@ -54,8 +59,9 @@ export function InstallationSheet({ order, topInset, bottomInset, onClose, onRef
     mounted.current = true;
     const back = BackHandler.addEventListener('hardwareBackPress', () => { onClose(); return true; });
     const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
-    if (Platform.OS === 'web') document.addEventListener('keydown', escape);
-    return () => { mounted.current = false; clearTimeout(copyTimer.current); back.remove(); if (Platform.OS === 'web') document.removeEventListener('keydown', escape); };
+    const browser = Platform.OS === 'web' && typeof document !== 'undefined' ? document : null;
+    browser?.addEventListener('keydown', escape);
+    return () => { mounted.current = false; clearTimeout(copyTimer.current); back.remove(); browser?.removeEventListener('keydown', escape); };
   }, [onClose]);
   useEffect(() => { setQrFailed(false); }, [qrUrl]);
 
@@ -86,6 +92,15 @@ export function InstallationSheet({ order, topInset, bottomInset, onClose, onRef
     catch { setFailure('Не удалось открыть установку. Попробуйте QR-код или ручной способ.'); }
   };
   const swipe = useModalSwipe(onClose);
+  const toggleInstruction = () => {
+    revealInstruction.current = !instruction;
+    setInstruction(!instruction);
+  };
+  const onInstructionLayout = ({ nativeEvent: { layout } }: LayoutChangeEvent) => {
+    if (!revealInstruction.current) return;
+    revealInstruction.current = false;
+    contentScroll.current?.scrollTo({ y: Math.max(0, layout.y - 14), animated: true });
+  };
   const waiting = <View style={styles.waiting}><Text style={styles.muted}>Данные установки ещё готовятся.</Text><Pressable onPress={onRefresh} disabled={!online || refreshing} accessibilityRole="button" testID="installation-refresh"><Text style={styles.link}>{refreshing ? 'Обновляем…' : 'Обновить данные'}</Text></Pressable></View>;
 
   return <View style={styles.overlay} testID="installation-overlay" accessibilityViewIsModal>
@@ -99,7 +114,8 @@ export function InstallationSheet({ order, topInset, bottomInset, onClose, onRef
           <GlassActionButton action="close" onPress={onClose} accessibilityLabel="Закрыть установку" testID="installation-close" />
         </View>
       </View>
-      <ScrollView {...swipe.scrollProps} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never" contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}>
+      <ScrollView {...swipe.scrollProps} ref={contentScroll} testID="installation-scroll" showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="never" contentContainerStyle={styles.content}>
         <View style={styles.tabs} accessibilityRole="tablist">
           {methods.map(item => <Pressable key={item.id} onPress={() => { setMethod(item.id); setFailure(null); setFeedback(null); setInstruction(false); }} style={[styles.tab, method === item.id && styles.selectedTab]} accessibilityRole="tab" accessibilityState={{ selected: method === item.id }} testID={`installation-tab-${item.id}`}>
             <Text style={[styles.tabText, method === item.id && styles.selectedText]}>{item.label}</Text>
@@ -119,14 +135,13 @@ export function InstallationSheet({ order, topInset, bottomInset, onClose, onRef
             <Text style={styles.muted}>Отсканируйте камерой с телефона, на который ставите eSIM</Text>
           </View>
           <View style={styles.actions}>
-            <GlassActionButton action="share" onPress={() => void exportQr('share')} disabled={!canExportQr || working} busy={working}
-              testID="installation-share" style={styles.secondary} caption={<Text style={styles.actionText}>Поделиться</Text>} />
-            <Pressable onPress={() => void exportQr('save')} disabled={!canExportQr || working} accessibilityRole="button"
-              accessibilityState={{ disabled: !canExportQr || working, busy: working }} testID="installation-save"
-              style={[styles.secondary, (!canExportQr || working) && styles.pressed]}>
-              {working ? <ActivityIndicator color={colors.text} size="small" /> : <Image source={assets.qr} style={styles.icon} contentFit="contain" accessible={false} />}
-              <Text style={styles.actionText}>Сохранить</Text>
-            </Pressable>
+            {qrActions.map(({ id, label, icon }) => <Pressable key={id} onPress={() => void exportQr(id)}
+              disabled={!canExportQr || working} accessibilityRole="button" accessibilityLabel={label}
+              accessibilityState={{ disabled: !canExportQr || working, busy: working }} testID={`installation-${id}`}
+              style={({ pressed }) => [styles.secondary, (!canExportQr || working || pressed) && styles.pressed]}>
+              {working ? <ActivityIndicator color={colors.text} size="small" /> : <Image source={icon} style={styles.icon} contentFit="contain" accessible={false} />}
+              <Text style={styles.actionText}>{label}</Text>
+            </Pressable>)}
           </View>
         </>}
         {method === 'manual' && <>
@@ -142,9 +157,12 @@ export function InstallationSheet({ order, topInset, bottomInset, onClose, onRef
         </>}
         {(failure || statusError) && <Text style={styles.error} accessibilityRole="alert">{failure ?? statusError}</Text>}
         {feedback && <Text style={styles.feedback} accessibilityLiveRegion="polite">{feedback}</Text>}
-        {instruction && <View style={styles.instructions}><Text style={styles.instructionTitle}>Как установить eSIM</Text><Text style={styles.instructionText}>1. Подключитесь к Wi-Fi.{ '\n' }2. Откройте настройки сотовой связи и выберите добавление eSIM.{ '\n' }3. Отсканируйте QR-код с другого экрана или введите SM-DP+ адрес и код активации из вкладки «Вручную».{ '\n' }4. Подтвердите добавление eSIM и следуйте подсказкам телефона.</Text></View>}
-        <Pressable onPress={() => setInstruction(value => !value)} accessibilityRole="button" accessibilityState={{ expanded: instruction }} testID="installation-instructions"><Text style={styles.link}>{instruction ? 'Свернуть инструкцию' : 'Подробная инструкция'}</Text></Pressable>
+        {instruction && <View style={styles.instructions} onLayout={onInstructionLayout} testID="installation-instruction-content"><Text style={styles.instructionTitle}>Как установить eSIM</Text><Text style={styles.instructionText}>1. Подключитесь к Wi-Fi.{ '\n' }2. Откройте настройки сотовой связи и выберите добавление eSIM.{ '\n' }3. Отсканируйте QR-код с другого экрана или введите SM-DP+ адрес и код активации из вкладки «Вручную».{ '\n' }4. Подтвердите добавление eSIM и следуйте подсказкам телефона.</Text></View>}
       </ScrollView>
+      <View style={[styles.instructionFooter, { paddingBottom: bottomInset }]}>
+        <Pressable onPress={toggleInstruction} hitSlop={8} accessibilityRole="button" accessibilityState={{ expanded: instruction }}
+          testID="installation-instructions"><Text style={styles.link}>{instruction ? 'Свернуть инструкцию' : 'Подробная инструкция'}</Text></Pressable>
+      </View>
     </AnimatedView>
   </View>;
 }
@@ -197,6 +215,7 @@ const styles = StyleSheet.create({
   waiting: { padding: 12, gap: 12, alignItems: 'center', justifyContent: 'center', minHeight: 160 },
   error: { fontFamily, fontSize: 13, lineHeight: 19, color: '#FFB59C', textAlign: 'center' },
   feedback: { fontFamily, fontSize: 13, lineHeight: 19, color: colors.lime, textAlign: 'center' },
+  instructionFooter: { flexShrink: 0, paddingTop: 14, paddingHorizontal: 12 },
   instructions: { padding: 16, borderRadius: 24, borderCurve: 'continuous', gap: 12, backgroundColor: colors.surface },
   instructionTitle: { fontFamily, fontSize: 18, lineHeight: 24, fontWeight: '700', color: colors.text },
   instructionText: { fontFamily, fontSize: 14, lineHeight: 22, color: colors.text },

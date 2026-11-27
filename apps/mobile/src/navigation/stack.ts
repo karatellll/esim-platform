@@ -20,7 +20,7 @@ export type RootStackParamList = {
   EmailSignIn: undefined;
   EmailCode: { challenge: SendCodeResponse; receivedAt: number; returnToCheckout?: boolean };
   Checkout: { country: CatalogEsim; tariff: CatalogTariff };
-  OrderStatus: { orderId: string; openPayment?: boolean; details?: boolean; openInstallation?: boolean; openTopUp?: boolean };
+  OrderStatus: { orderId: string; openPayment?: boolean; details?: boolean; openTopUp?: boolean };
   WorldTariffs: { bundle: CatalogEsim | null } & TariffScreenSelection;
   CountryTariffs: { country: CatalogEsim } & TariffScreenSelection;
   RegionTariffs: { category: CatalogCategory } & TariffScreenSelection;

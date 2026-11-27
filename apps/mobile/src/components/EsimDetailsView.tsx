@@ -9,7 +9,7 @@ import { Text } from '../ui/Text';
 import type { OrderData } from '../../../../packages/shared/contracts/checkout';
 import type { CatalogEsim } from '../../../../packages/shared/contracts/catalog';
 import { orderCountry, orderDataLabel, orderStateLabel } from '../orders/display';
-import { trafficDisplay } from '../orders/installation';
+import { trafficDisplay } from '../orders/myEsims';
 import { formatDuration } from '../tariffs/tariffs';
 import { CountryFlag } from './CountryFlag';
 import { AllowanceRing } from './PurchasedEsimView';
@@ -30,7 +30,7 @@ export function EsimDetailsView({ order, country, initialTopUp = false, topInset
     </View>
     <View style={s.actions}><Pressable onPress={() => setTopUp(true)} style={[s.action, { backgroundColor: colors.lime }]}><Text style={[s.title, { color: colors.ink }]}>+</Text><Text style={{ color: colors.ink }}>Докупить</Text></Pressable><Pressable onPress={onInstall} style={s.action}><Image source={require('../../assets/installation/qr.svg')} style={s.icon} /><Text style={s.body}>Установка</Text></Pressable><GlassActionButton action="share" onPress={share} style={s.action} caption={<Text style={s.body}>Поделиться</Text>} /></View>
     <View style={s.card}><Text style={s.title}>Пакет</Text>{[['Длительность', formatDuration(order.tariff.duration)], ['Активирована', date(order.activated_at)], ['Истекает', date(order.expires_at)]].map(([label, value]) => <View key={label} style={s.detail}><Text style={s.muted}>{label}</Text><Text style={s.body}>{value}</Text></View>)}</View>
-    <View style={s.card}><Text style={s.title}>Сети</Text><Text style={s.muted}>Информация об операторах для этой eSIM пока недоступна.</Text></View>{!!error && <Text style={s.muted}>{error}</Text>}
+    {!!error && <Text style={s.muted}>{error}</Text>}
   </ScrollView>
     {topUp && <TopUpSheet onClose={() => setTopUp(false)}>
       <Text style={s.muted}>Пополнение и смена страны на этой eSIM пока недоступны.</Text>

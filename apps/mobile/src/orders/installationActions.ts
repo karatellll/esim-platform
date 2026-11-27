@@ -1,5 +1,16 @@
 import { ActionSheetIOS, Clipboard, Linking, Platform, Share } from 'react-native';
 
+import type { OrderData } from '../../../../packages/shared/contracts/checkout';
+import { getOrderQr } from '../api/checkout';
+
+export async function loadOrderInstallationQr(order: OrderData | null, token: string | null): Promise<Blob> {
+  if (!order) throw new Error('Данные установки ещё готовятся.');
+  const local = order.provision?.qr_code_url;
+  if (local?.startsWith('file:')) return fetch(local).then(response => response.blob());
+  if (!token) throw new Error('Войдите в аккаунт, чтобы скачать QR-код.');
+  return getOrderQr(order.id, token);
+}
+
 export async function copyInstallationValue(value: string): Promise<void> {
   if (!value) throw new Error('Данные ещё готовятся. Обновите заказ.');
   if (Platform.OS === 'web') {
