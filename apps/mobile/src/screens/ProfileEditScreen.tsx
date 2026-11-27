@@ -1,8 +1,8 @@
 import { GlassActionButton } from '../components/GlassActionButton';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { ImageManipulator, manipulateAsync, SaveFormat, type ImageManipulatorContext, type ImageRef } from 'expo-image-manipulator';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { ScrollView } from '../ui/ScrollView';
 import { Pressable, View } from '../ui/Surface';
@@ -15,6 +15,32 @@ import { useOnline } from '../service/connectivity';
 import type { RootStackParamList } from '../navigation/stack';
 import { colors } from '../theme';
 
+const avatarSize = 320;
+const avatarEncoding = { compress: 0.65, format: SaveFormat.JPEG, base64: true };
+
+async function prepareIosAvatar(uri: string) {
+  const source = await Image.loadAsync({ uri }, { maxWidth: 1280, maxHeight: 1280 });
+  let context: ImageManipulatorContext | undefined;
+  let rendered: ImageRef | undefined;
+  try {
+    const width = Math.round(source.width * source.scale);
+    const height = Math.round(source.height * source.scale);
+    const side = Math.min(width, height);
+    if (side < 1) throw new Error('Не удалось определить размер фотографии');
+    context = ImageManipulator.manipulate(source);
+    if (width !== height) context.crop({
+      originX: Math.floor((width - side) / 2), originY: Math.floor((height - side) / 2), width: side, height: side,
+    });
+    if (side > avatarSize) context.resize({ width: avatarSize });
+    rendered = await context.renderAsync();
+    return await rendered.saveAsync(avatarEncoding);
+  } finally {
+    rendered?.release();
+    context?.release();
+    source.release();
+  }
+}
+
 export function ProfileEditScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'ProfileEdit'>) {
   const auth = useAuth();
   const online = useOnline();
@@ -22,18 +48,30 @@ export function ProfileEditScreen({ navigation }: NativeStackScreenProps<RootSta
   const [name, setName] = useState(auth.user?.display_name || auth.user?.email.split('@')[0] || '');
   const [avatar, setAvatar] = useState(auth.user?.avatar ?? null);
   const [busy, setBusy] = useState(false);
+  const [choosing, setChoosing] = useState(false);
+  const choosingPhoto = useRef(false);
   const [error, setError] = useState('');
   const choosePhoto = async () => {
+    if (busy || choosingPhoto.current) return;
+    choosingPhoto.current = true;
+    setChoosing(true);
+    setError('');
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+      const ios = Platform.OS === 'ios';
+      const result = await ImagePicker.launchImageLibraryAsync(ios ? {
+        mediaTypes: ['images'], allowsEditing: false, quality: 1,
+        preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Current,
+      } : { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
       if (result.canceled) return;
-      const resized = await manipulateAsync(result.assets[0].uri, [{ resize: { width: 320 } }], { compress: 0.65, format: SaveFormat.JPEG, base64: true });
+      const { uri } = result.assets[0];
+      const resized = ios ? await prepareIosAvatar(uri) : await manipulateAsync(uri, [{ resize: { width: avatarSize } }], avatarEncoding);
       if (!resized.base64 || resized.base64.length > 266000) throw new Error('Выберите фотографию меньшего размера');
       setAvatar('data:image/jpeg;base64,' + resized.base64);
     } catch { setError('Не удалось выбрать фотографию. Попробуйте другую.'); }
+    finally { choosingPhoto.current = false; setChoosing(false); }
   };
   const save = async () => {
-    if (busy || !name.trim()) return;
+    if (busy || choosingPhoto.current || !name.trim()) return;
     setBusy(true); setError('');
     try { await auth.saveProfile(name.trim(), avatar); navigation.goBack(); }
     catch (e) { setError(e instanceof Error ? e.message : 'Не удалось сохранить профиль'); }
@@ -47,16 +85,19 @@ export function ProfileEditScreen({ navigation }: NativeStackScreenProps<RootSta
         </View>
         <Text style={s.title} accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit>Профиль</Text>
         <View style={s.navSide}>
-          <Pressable disabled={!online || busy || !name.trim()} onPress={save} accessibilityRole="button" style={s.save}>
+          <Pressable disabled={!online || busy || choosing || !name.trim()} onPress={save} accessibilityRole="button" style={s.save}>
             <Text style={s.saveText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
               {busy ? 'Сохраняем…' : 'Сохранить'}
             </Text>
           </Pressable>
         </View>
       </View>
-      <Pressable onPress={choosePhoto} disabled={busy} accessibilityLabel="Выбрать фото" style={s.avatar}>{avatar ? <Image source={{ uri: avatar }} style={s.avatarImage} /> : <Image source={require('../../assets/mvp/107dc.svg')} style={{ width: 40, height: 40 }} />}</Pressable>
-      <Pressable onPress={choosePhoto} disabled={busy}><Text style={[s.link, s.center]}>{avatar ? 'Изменить фото' : 'Добавить фото'}</Text></Pressable>
-      {avatar && <Pressable onPress={() => setAvatar(null)} disabled={busy}><Text style={[s.label, s.center]}>Удалить фото</Text></Pressable>}
+      <Pressable onPress={choosePhoto} disabled={busy || choosing} accessibilityRole="button" accessibilityLabel="Выбрать фото"
+        accessibilityState={{ busy: choosing }} style={s.avatar}>{avatar ? <Image source={{ uri: avatar }} style={s.avatarImage} /> : <Image source={require('../../assets/mvp/107dc.svg')} style={{ width: 40, height: 40 }} />}</Pressable>
+      <Pressable onPress={choosePhoto} disabled={busy || choosing} accessibilityRole="button">
+        <Text style={[s.link, s.center]} accessibilityLiveRegion="polite">{choosing ? 'Готовим фото…' : avatar ? 'Изменить фото' : 'Добавить фото'}</Text>
+      </Pressable>
+      {avatar && <Pressable onPress={() => setAvatar(null)} disabled={busy || choosing}><Text style={[s.label, s.center]}>Удалить фото</Text></Pressable>}
       <Text style={s.label}>Имя</Text><TextInput testID="profile-name-input" accessibilityLabel="Имя" value={name} onChangeText={setName} maxLength={80} editable={!busy} style={s.input} selectionColor={colors.accent} />
       <Text style={s.label}>Почта</Text><View style={s.email}><Text style={s.emailText}>{auth.user?.email}</Text><Image source={require('../../assets/mvp/3efc7.svg')} style={s.icon} /></View><Text style={s.hint}>Почта — вход в аккаунт, изменить её нельзя</Text>
       {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}

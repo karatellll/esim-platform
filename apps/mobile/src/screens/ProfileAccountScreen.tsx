@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { AuthUser } from '../../../../packages/shared/contracts/auth';
 import { useAuth } from '../auth/AuthProvider';
+import { useSavingsBalance } from '../hooks/useSavingsBalance';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/stack';
 import type { RootTabParamList } from '../navigation/tabs';
@@ -52,6 +53,8 @@ function AccountRow({ label, icon, detail, accent, divider, testID, onPress }: R
 // Figma MVP 64:4555. Values from the design are examples, not account data.
 export function ProfileAccountScreen({ user }: { user: AuthUser }) {
   const auth = useAuth();
+  const { state: savings } = useSavingsBalance();
+  const balance = `${new Intl.NumberFormat('ru-RU').format(savings.status === 'ready' ? savings.amount : 0)} ₽`;
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const stack = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
@@ -82,9 +85,9 @@ export function ProfileAccountScreen({ user }: { user: AuthUser }) {
         <Image source={assets.chevron} style={styles.icon} />
       </Pressable>
 
-      <Pressable onPress={() => navigation.navigate('Savings')} accessibilityRole="button" accessibilityLabel="Копилка. Баланс пока недоступен" testID="profile-savings" style={({ pressed }) => [styles.savings, pressed && styles.pressed]}>
+      <Pressable onPress={() => navigation.navigate('Savings')} accessibilityRole="button" accessibilityLabel={savings.status === 'error' ? 'Копилка. Баланс пока недоступен' : `Копилка. ${balance}`} testID="profile-savings" style={({ pressed }) => [styles.savings, pressed && styles.pressed]}>
         <Text style={styles.savingsLabel}>Копилка</Text>
-        <Text style={styles.balance} testID="profile-savings-balance">—</Text>
+        <Text style={styles.balance} testID="profile-savings-balance">{balance}</Text>
         <Text style={styles.cashback}>5% с каждой покупки</Text>
         <View pointerEvents="none" style={{ position: 'absolute', right: 10, top: -38.6, width: 120, height: 190 }}>
           {[[14,144.88],[18,132.88],[11,120.88],[19,108.88]].map(([left, top], index) => <Image key={index} source={require('../../assets/mvp/9f283.svg')} style={{ position: 'absolute', left, top, width: 92, height: 45.12 }} />)}

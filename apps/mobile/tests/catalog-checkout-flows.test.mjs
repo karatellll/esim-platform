@@ -18,7 +18,7 @@ function assertGlassClose(button) {
   assert.equal(button.findByType('Image').props.source, '../../assets/checkout/close.svg');
 }
 
-function app({ summary = async () => ({ data: base }), create = async () => ({ data: { id: 'order' } }), tariffsByEsim = {}, categories = [], signedIn = true, platform = 'web', orders = [], orderStatusById = {} } = {}) {
+function app({ summary = async () => ({ data: base }), create = async () => ({ data: { id: 'order' } }), tariffsByEsim = {}, categories = [], signedIn = true, platform = 'web', orders = [], orderStatusById = {}, modules = {} } = {}) {
   const cache = new Map(), calls = [], navigations = [];
   const animations = [], scrollCalls = [];
   const keyboardEvents = new Map();
@@ -73,6 +73,7 @@ function app({ summary = async () => ({ data: base }), create = async () => ({ d
     '/auth/AuthProvider': { useAuth: () => ({ user: signedIn ? { id: 'user', email: 'test@example.com' } : null, accessToken: signedIn ? 'local-test' : null, loading: false }) },
     '/api/auth': { AuthApiError: class extends Error {} },
     '/api/checkout': { CheckoutApiError: class extends Error {}, getCheckoutSummary: async (body, signal) => { calls.push(body); return summary(body, signal); }, createCheckoutOrder: async body => { calls.push(body); return create(body); } },
+    ...modules,
   };
   function load(file) {
     if (cache.has(file)) return cache.get(file).exports;
@@ -795,6 +796,53 @@ test('opening details skips the payment check while a pending payment can still 
     await act(() => screen.unmount());
   }
   assert.equal(a.animations.at(-1), 'loop stopped');
+});
+
+test('the iOS avatar picker loads a bounded original and prepares a square before saving', async () => {
+  const calls = [];
+  let finishLoad;
+  const loading = new Promise(resolve => { finishLoad = resolve; });
+  const image = { width: 640, height: 1280, scale: 1, release: () => calls.push('release-source') };
+  const render = { saveAsync: async options => { calls.push(['encode', options]); return { base64: 'image-data' }; }, release: () => calls.push('release-render') };
+  const context = { crop: options => calls.push(['crop', options]), resize: options => calls.push(['resize', options]),
+    renderAsync: async () => render, release: () => calls.push('release-context') };
+  const Image = Object.assign(props => React.createElement('Image', props), {
+    loadAsync: (source, options) => { calls.push(['load', source, options]); return loading; },
+  });
+  const a = app({ platform: 'ios', modules: {
+    'expo-image': { Image },
+    'expo-image-picker': {
+      UIImagePickerPreferredAssetRepresentationMode: { Current: 'current' },
+      launchImageLibraryAsync: async options => { calls.push(['pick', options]); return { canceled: false, assets: [{ uri: 'file:///photo.heic' }] }; },
+    },
+    'expo-image-manipulator': { ImageManipulator: { manipulate: source => { assert.equal(source, image); return context; } }, SaveFormat: { JPEG: 'jpeg' } },
+    '/auth/AuthProvider': { useAuth: () => ({ user: { email: 'test@example.com' }, saveProfile: async (...args) => { calls.push(['save', ...args]); } }) },
+  } });
+  const screen = await a.mount('/screens/ProfileEditScreen.tsx', a.props);
+  const buttons = () => screen.root.findAllByType('Pressable');
+  const photo = () => buttons().find(button => button.props.accessibilityLabel === 'Выбрать фото');
+  const save = () => buttons().find(button => button.findAllByType('Text').some(text => text.props.children === 'Сохранить'));
+  try {
+    let selection;
+    await act(async () => { selection = photo().props.onPress(); });
+    assert.deepEqual(calls, [
+      ['pick', { mediaTypes: ['images'], allowsEditing: false, quality: 1, preferredAssetRepresentationMode: 'current' }],
+      ['load', { uri: 'file:///photo.heic' }, { maxWidth: 1280, maxHeight: 1280 }],
+    ]);
+    assert.equal(save().props.disabled, true);
+    assert.ok(screen.root.findAllByType('Text').some(text => text.props.children === 'Готовим фото…'));
+    await act(() => photo().props.onPress());
+    assert.equal(calls.filter(([kind]) => kind === 'pick').length, 1);
+    await act(async () => { finishLoad(image); await selection; });
+    assert.deepEqual(calls.slice(2), [
+      ['crop', { originX: 0, originY: 320, width: 640, height: 640 }], ['resize', { width: 320 }],
+      ['encode', { compress: 0.65, format: 'jpeg', base64: true }], 'release-render', 'release-context', 'release-source',
+    ]);
+    assert.equal(save().props.disabled, false);
+    assert.deepEqual(photo().findByType('Image').props.source, { uri: 'data:image/jpeg;base64,image-data' });
+    await act(() => save().props.onPress());
+    assert.deepEqual(calls.at(-1), ['save', 'test', 'data:image/jpeg;base64,image-data']);
+  } finally { await act(() => screen.unmount()); }
 });
 
 test('the purchased eSIM shows the catalog network and the receipt on its own row', async () => {
